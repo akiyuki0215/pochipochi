@@ -4,7 +4,7 @@
     "overseas": ["ASUS","Dell","Lenovo","MSI"],
     "surface": ["Surface"],
     "apple": ["Apple"]
-  }
+  },
   "text": {
     "common": {
       "q_hasNojima": "ノジマの保証に入っていますか？"
