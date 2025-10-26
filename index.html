@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>店頭対応ナビ（MVP／JSON版・改修）</title>
+<title>店頭対応ナビ（アコーディオンUI版）</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{ --brand:#004c99; --brand-dark:#00396f; --bg:#f5f7fb; --text:#1b1f24; --muted:#505a66;
          --card:#ffffff; --border:#e3e7ef; --ok:#16a34a; --warn:#f59e0b; --ng:#ef4444; --info:#3b82f6; }
   *{box-sizing:border-box} html,body{height:100%}
   body{margin:0;background:linear-gradient(180deg,#f7fbff 0%, #eef3fa 100%);color:var(--text);
-       font-family:"Noto Sans JP","Roboto",system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;}
+       font-family:"Noto Sans JP",system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;}
   .site-header{position:sticky;top:0;z-index:100;background:linear-gradient(90deg,var(--brand),var(--brand-dark));
                color:#fff;padding:14px 20px;box-shadow:0 4px 16px rgba(0,0,0,.08);}
   .site-header .title{font-size:20px;font-weight:700;letter-spacing:.02em}
@@ -20,11 +20,9 @@
   .container{max-width:980px;margin:28px auto;padding:0 16px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
         box-shadow:0 6px 20px rgba(0,0,0,.06);padding:18px;margin-bottom:18px}
-  .section{margin-top:8px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;min-width:140px;
-       border:1px solid #cdd6e6;border-radius:12px;cursor:pointer;margin:8px 8px 0 0;
-       background:linear-gradient(180deg,#ffffff 0%, #f3f6fb 100%);font-weight:600;color:#0f172a;transition:.18s ease;
-       box-shadow:0 2px 6px rgba(2,6,23,.04)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;min-width:120px;
+       border:1px solid #cdd6e6;border-radius:10px;cursor:pointer;margin:8px 8px 0 0;
+       background:linear-gradient(180deg,#ffffff 0%, #f3f6fb 100%);font-weight:600;color:#0f172a;transition:.18s ease;}
   .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(2,6,23,.08)}
   .btn.primary{border-color:#a8c6ff;background:linear-gradient(180deg,#e9f2ff 0%, #dbe9ff 100%)}
   .path{font-size:12px;color:var(--muted);margin-bottom:10px}
@@ -37,8 +35,17 @@
   .ghost{background:#fff;border:1px dashed var(--border);color:var(--muted)}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
 
-  /* 履歴（折りたたみテーブル） */
-  .history h2{margin:0 0 10px 0;font-size:18px}
+  /* アコーディオン */
+  details.acc{border:1px solid var(--border);border-radius:14px;background:#fff;margin:10px 0;overflow:hidden}
+  details.acc[open]{box-shadow:0 6px 20px rgba(0,0,0,.06)}
+  details.acc > summary{padding:12px 14px;font-weight:700;cursor:pointer;list-style:none;
+                        display:flex;align-items:center;gap:8px;background:#f6f9ff}
+  details.acc > summary::-webkit-details-marker{display:none}
+  .chev{transition:.15s ease; display:inline-block}
+  details.acc[open] .chev{transform:rotate(90deg)}
+  .acc-body{padding:12px 14px 16px 14px}
+
+  /* 履歴テーブル */
   .log{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .log th,.log td{font-size:13px;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
   .log thead th{background:#f0f5ff}
@@ -52,29 +59,31 @@
 </head>
 <body>
 <header class="site-header">
-  <div class="title">店頭対応ナビ（MVP）</div>
+  <div class="title">店頭対応ナビ（アコーディオンUI版）</div>
   <div class="subtitle">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
 </header>
 
 <main class="container">
   <div class="card">
     <div class="path" id="path">進行: メーカー選択</div>
-    <div id="content">読み込み中…</div>
+    <div id="content"></div>
     <div class="controls">
       <button class="btn ghost" id="backBtn" style="display:none">← ひとつ戻る</button>
       <button class="btn primary" id="resetBtn">最初から</button>
     </div>
   </div>
 
-  <section class="history card">
-    <h2>🕓 更新履歴</h2>
-    <div class="controls">
-      <button class="btn" id="showLatest">最新10件</button>
-      <button class="btn" id="showAll">すべて表示</button>
+  <details class="acc card" id="historyAcc">
+    <summary><span class="chev">▶</span> 🕓 更新履歴（タップで開閉）</summary>
+    <div class="acc-body">
+      <div class="controls" style="margin-top:0">
+        <button class="btn" id="showLatest">最新10件</button>
+        <button class="btn" id="showAll">すべて表示</button>
+      </div>
+      <div id="logWrap" style="margin-top:10px"></div>
+      <div class="note">※ 開いたときに読み込み＆行の「詳細」を押すと本文が開閉します。</div>
     </div>
-    <div id="logWrap" style="margin-top:10px"></div>
-    <div class="note">※ 初期表示は要点のみ。行をタップ／「詳細」を押すと本文が開閉します。</div>
-  </section>
+  </details>
 </main>
 
 <script>
@@ -87,32 +96,33 @@ const state={history:[],current:"メーカー選択"};
 
 function kanaKey(label){ return (KANA[normalizeKey(label)]||normalizeKey(label)); }
 function sortLabelsJa(arr){ return arr.slice().map(normalizeKey).sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja')); }
-
 async function loadJSON(path, fallback){
-  try{ const res=await fetch(path,{cache:'no-store'}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json(); }
-  catch(e){ console.warn(path+" 読込失敗。デフォルト使用",e); return fallback; }
+  try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok) throw 0; return await r.json(); } catch(e){ return fallback; }
 }
-
 function renderPath(){ const path=["メーカー選択",...state.history.map(h=>h.choice||h.node)]; document.getElementById('path').textContent="進行: "+path.join(" > "); }
 
-function sectionButtons(brands){
-  const wrap=document.createElement('div'); wrap.className="section card";
+function brandButtons(title, brands){
+  const det=document.createElement('details'); det.className='acc';
+  const sum=document.createElement('summary'); sum.innerHTML=`<span class="chev">▶</span> ${title}`; det.appendChild(sum);
+  const body=document.createElement('div'); body.className='acc-body';
+  const wrap=document.createElement('div');
   sortLabelsJa(brands).forEach(raw=>{
     const name=normalizeKey(raw);
-    const b=document.createElement('button'); b.className="btn"; b.textContent=name;
+    const b=document.createElement('button'); b.className='btn'; b.textContent=name;
     b.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=name+"_first"; render(); };
     wrap.appendChild(b);
   });
-  return wrap;
+  body.appendChild(wrap); det.appendChild(body);
+  return det;
 }
 
 function renderStart(){
   const c=document.getElementById('content'); c.innerHTML="";
   const g=DATA.groups;
-  c.appendChild(sectionButtons(g.domestic));
-  c.appendChild(sectionButtons(g.overseas));
-  c.appendChild(sectionButtons(g.surface));
-  c.appendChild(sectionButtons(g.apple));
+  c.appendChild(brandButtons("国内メーカー", g.domestic));
+  c.appendChild(brandButtons("海外メーカー", g.overseas));
+  c.appendChild(brandButtons("Surface", g.surface));
+  c.appendChild(brandButtons("Apple", g.apple));
 }
 
 function makeResult(tone,title,lines){
@@ -179,7 +189,11 @@ function buildFlowFromData(){
 
 function render(){
   renderPath();
-  if(state.current==="メーカー選択"){ renderStart(); document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none"; return; }
+  if(state.current==="メーカー選択"){
+    renderStart();
+    document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none";
+    return;
+  }
   const node=FLOW.nodes[state.current];
   const c=document.getElementById('content');
   if(!node){
@@ -197,21 +211,6 @@ let FLOW={nodes:{}};
 document.getElementById('resetBtn').onclick=()=>{ state.history=[]; state.current="メーカー選択"; render(); };
 document.getElementById('backBtn').onclick=()=>{ if(!state.history.length) return; const last=state.history.pop(); state.current=last.node; render(); };
 
-const STATUS_CLASS={"採用":"ok","保留":"hold","却下":"reject"};
-async function loadLog(){ try{ const r=await fetch("update_log.json",{cache:"no-store"}); if(!r.ok) throw 0; return await r.json(); } catch(e){ return []; } }
-function renderLogTable(rows){
-  const head=`<thead><tr><th style="width:110px">日付</th><th style="width:140px">店舗</th><th style="width:120px">担当</th><th style="width:120px">メーカー</th><th>変更内容</th><th style="width:90px">状態</th></tr></thead>`;
-  const body=rows.map((r,i)=>{
-    const pill=STATUS_CLASS[r.status]||"hold"; const id="d"+i;
-    const short=(r.summary||"").length>22 ? (r.summary||"").slice(0,22)+"…" : (r.summary||"");
-    const detail=(r.link? `${r.summary||""}<div style='margin-top:6px'><a href="${r.link}" target="_blank" rel="noopener">参考資料</a></div>` : (r.summary||""));
-    return `<tr class="row-head" onclick="toggleRow('${id}')"><td>${r.date||""}</td><td>${r.store||""}</td><td>${r.person||""}</td><td>${r.maker||""}</td><td><span class="toggle">詳細</span>：${short}</td><td><span class="pill ${pill}">${r.status||"保留"}</span></td></tr>
-            <tr id="${id}" class="row-detail"><td colspan="6">${detail}</td></tr>`;
-  }).join("");
-  return `<table class="log">${head}<tbody>${body}</tbody></table>`;
-}
-function toggleRow(id){ const row=document.getElementById(id); if(row){ row.style.display=(row.style.display==='table-row'?'none':'table-row'); } }
-
 (async ()=>{
   const fallback={ "groups":{"domestic":["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],"overseas":["ASUS","Dell","Lenovo","MSI"],"surface":["Surface"],"apple":["Apple"]},
     "text":{"common":{"q_hasNojima":"ノジマの保証に入っていますか？"},"domestic":{"q_hasWarranty":"メーカー保証がありますか？","r_warranty_title":"メーカー保証内の受付（注意事項あり）","r_warranty_details":["メーカー保証内として受付します。","ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。","その旨をお伝えのうえ、受付を進めてください。"],"r_nojima_ok_title":"店舗での修理受付：可能（ノジマ保証）","r_nojima_ok_details":["店舗での修理受付は可能です。","保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。","前受け金は必要ありません。"],"r_prepay_title":"修理受付は可能（前受け金）","r_prepay_details":["前受け金5,500円（現金のみ）をいただいて修理受付可能です。"]},
@@ -221,13 +220,35 @@ function toggleRow(id){ const row=document.getElementById(id); if(row){ row.styl
   DATA=await loadJSON("data.json",fallback);
   window.DATA=DATA; window.FLOW=buildFlowFromData(); render();
 
-  const rows=(await loadLog()).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-  const wrap=document.getElementById("logWrap");
-  function latest(){ wrap.innerHTML=renderLogTable(rows.slice(0,10)); }
-  function all(){ wrap.innerHTML=renderLogTable(rows); }
-  document.getElementById("showLatest").onclick=latest;
-  document.getElementById("showAll").onclick=all;
-  latest();
+  // 履歴は開いたときに読み込み
+  const acc=document.getElementById('historyAcc');
+  let loaded=false;
+  acc.addEventListener('toggle', async ()=>{
+    if(acc.open && !loaded){
+      loaded=true;
+      const res=await fetch('update_log.json',{cache:'no-store'});
+      const rows = res.ok ? await res.json() : [];
+      const sorted = rows.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+      const wrap=document.getElementById("logWrap");
+
+      function table(rows){
+        const head=`<thead><tr><th style="width:110px">日付</th><th style="width:140px">店舗</th><th style="width:120px">担当</th><th style="width:120px">メーカー</th><th>変更内容</th><th style="width:90px">状態</th></tr></thead>`;
+        const body=rows.map((r,i)=>{
+          const pill={"採用":"ok","保留":"hold","却下":"reject"}[r.status]||"hold"; const id="d"+i;
+          const short=(r.summary||"").length>22 ? (r.summary||"").slice(0,22)+"…" : (r.summary||"");
+          const detail=(r.link? `${r.summary||""}<div style='margin-top:6px'><a href="${r.link}" target="_blank" rel="noopener">参考資料</a></div>` : (r.summary||""));
+          return `<tr class="row-head" onclick="(function(id){const row=document.getElementById(id);row.style.display=(row.style.display==='table-row'?'none':'table-row');})('${id}')"><td>${r.date||""}</td><td>${r.store||""}</td><td>${r.person||""}</td><td>${r.maker||""}</td><td><span class="toggle">詳細</span>：${short}</td><td><span class="pill ${pill}">${r.status||"保留"}</span></td></tr>
+                  <tr id="${id}" class="row-detail"><td colspan="6">${detail}</td></tr>`;
+        }).join("");
+        return `<table class="log">${head}<tbody>${body}</tbody></table>`;
+      }
+      const showLatest=()=> wrap.innerHTML=table(sorted.slice(0,10));
+      const showAll=()=> wrap.innerHTML=table(sorted);
+      document.getElementById('showLatest').onclick=showLatest;
+      document.getElementById('showAll').onclick=showAll;
+      showLatest();
+    }
+  });
 })();
 </script>
 </body>
