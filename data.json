@@ -1,25 +1,10 @@
 {
   "groups": {
-    "domestic": [
-      "NEC",
-      "Fujitsu",
-      "Dynabook",
-      "VAIO",
-      "Mouse Computer"
-    ],
-    "overseas": [
-      "ASUS",
-      "Dell",
-      "Lenovo",
-      "MSI"
-    ],
-    "surface": [
-      "Surface"
-    ],
-    "apple": [
-      "Apple"
-    ]
-  },
+    "domestic": ["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
+    "overseas": ["ASUS","Dell","Lenovo","MSI"],
+    "surface": ["Surface"],
+    "apple": ["Apple"]
+  }
   "text": {
     "common": {
       "q_hasNojima": "ノジマの保証に入っていますか？"
