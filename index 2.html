@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>店頭対応ナビ（MVP／JSON版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --brand:#004c99; --brand-dark:#00396f; --bg:#f5f7fb; --text:#1b1f24; --muted:#505a66;
+         --card:#ffffff; --border:#e3e7ef; --ok:#16a34a; --warn:#f59e0b; --ng:#ef4444; --info:#3b82f6; }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;background:linear-gradient(180deg,#f7fbff 0%, #eef3fa 100%);color:var(--text);
+       font-family:"Noto Sans JP","Roboto",system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;}
+  .site-header{position:sticky;top:0;z-index:100;background:linear-gradient(90deg,var(--brand),var(--brand-dark));
+               color:#fff;padding:14px 20px;box-shadow:0 4px 16px rgba(0,0,0,.08);}
+  .site-header .title{font-size:20px;font-weight:700;letter-spacing:.02em}
+  .site-header .subtitle{opacity:.9;font-size:12px;margin-top:2px}
+  .container{max-width:980px;margin:28px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+        box-shadow:0 6px 20px rgba(0,0,0,.06);padding:18px;margin-bottom:18px}
+  .section{margin-top:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;min-width:140px;
+       border:1px solid #cdd6e6;border-radius:12px;cursor:pointer;margin:8px 8px 0 0;
+       background:linear-gradient(180deg,#ffffff 0%, #f3f6fb 100%);font-weight:600;color:#0f172a;transition:.18s ease;
+       box-shadow:0 2px 6px rgba(2,6,23,.04)}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(2,6,23,.08)}
+  .btn.primary{border-color:#a8c6ff;background:linear-gradient(180deg,#e9f2ff 0%, #dbe9ff 100%)}
+  .path{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .result{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fcfffd}
+  .result h2{margin:0 0 8px 0;font-size:18px}
+  .result p{margin:6px 0}
+  .result.ok{border-left:4px solid var(--ok)} .result.warn{border-left:4px solid var(--warn)}
+  .result.ng{border-left:4px solid var(--ng)} .result.info{border-left:4px solid var(--info)}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .ghost{background:#fff;border:1px dashed var(--border);color:var(--muted)}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  /* 履歴 */
+  .history{overflow:hidden}
+  .history h2{margin:0 0 10px 0;font-size:18px}
+  table.log{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .log th,.log td{font-size:13px;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+  .log thead th{background:#f0f5ff;color:#0f172a}
+  .log tbody tr:hover{background:#fafcff}
+  .pill{display:inline-block;border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:12px;color:#334155}
+  .pill.ok{border-color:#86efac;background:#ecfdf5} .pill.hold{border-color:#fde68a;background:#fffbeb}
+  .pill.reject{border-color:#fecaca;background:#fff1f2}
+  .log .small{color:#64748b;font-size:12px}
+  .log-controls{display:flex;gap:8px;margin-top:10px}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="title">店頭対応ナビ（MVP）</div>
+  <div class="subtitle">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <div class="path" id="path">進行: メーカー選択</div>
+    <div id="content">読み込み中…</div>
+    <div class="controls">
+      <button class="btn ghost" id="backBtn" style="display:none">← ひとつ戻る</button>
+      <button class="btn primary" id="resetBtn">最初から</button>
+    </div>
+  </div>
+
+  <section class="history card">
+    <h2>🕓 更新履歴</h2>
+    <div class="log-controls">
+      <button class="btn" id="showLatest">最新10件</button>
+      <button class="btn" id="showAll">すべて表示</button>
+    </div>
+    <div id="logWrap" style="margin-top:10px"></div>
+    <div class="note">※ 履歴は <code>update_log.json</code> を読み込んで表示しています。</div>
+  </section>
+</main>
+
+<script>
+const KANA = {"NEC":"エヌイーシー","Fujitsu":"フジツウ","Lenovo":"レノボ","Surface":"サーフェス","Dell":"デル",
+              "ASUS":"エイスース","Dynabook":"ダイナブック","MSI":"エムエスアイ","VAIO":"バイオ","Mouse Computer":"マウスコンピューター","Apple":"アップル"};
+
+let DATA = null;
+const state = { history:[], current:"メーカー選択" };
+
+function kanaKey(label){ return (KANA[label]||label); }
+function sortLabelsJa(arr){ return arr.slice().sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja')); }
+
+async function loadJSON(path, fallback){
+  try{
+    const res = await fetch(path, {cache:'no-store'});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }catch(e){
+    console.warn(path+" 読込失敗。組み込みのデフォルトを使用します。", e);
+    return fallback;
+  }
+}
+
+function renderPath(){
+  const path = ["メーカー選択", ...state.history.map(h=>h.choice||h.node)];
+  document.getElementById('path').textContent = "進行: " + path.join(" > ");
+}
+
+function sectionButtons(brands){
+  const wrap = document.createElement('div'); wrap.className = "section card";
+  sortLabelsJa(brands).forEach(name=>{
+    const b = document.createElement('button');
+    b.className = "btn"; b.textContent = name;
+    b.onclick = ()=>{ state.history.push({node:state.current, choice:name}); state.current = name+"_first"; render(); };
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+function renderStart(){
+  const content = document.getElementById('content'); content.innerHTML = "";
+  const groups = DATA.groups;
+  content.appendChild(sectionButtons(groups.domestic));
+  content.appendChild(sectionButtons(groups.overseas));
+  content.appendChild(sectionButtons(groups.surface));
+  content.appendChild(sectionButtons(groups.apple));
+}
+
+function makeResult(tone,title,lines){
+  const wrap=document.createElement('div'); wrap.className=`result ${tone||'info'}`;
+  const h=document.createElement('h2'); h.textContent=title||"結果"; wrap.appendChild(h);
+  (lines||[]).forEach(t=>{ const p=document.createElement('p'); p.textContent=t; wrap.appendChild(p); });
+  return wrap;
+}
+
+function renderNode(node){
+  const content = document.getElementById('content'); content.innerHTML="";
+  if(node.type==="choice"){
+    const q=document.createElement('h2'); q.textContent=node.question||"選択してください"; content.appendChild(q);
+    node.options.forEach(opt=>{
+      const b=document.createElement('button'); b.className="btn primary"; b.textContent=opt.label;
+      b.onclick=()=>{ state.history.push({node:state.current,choice:opt.label}); state.current=opt.next; render(); };
+      content.appendChild(b);
+    });
+    const note=document.createElement('div'); note.className="note"; note.textContent="※「← ひとつ戻る」で前の質問に戻れます"; content.appendChild(note);
+  }else{
+    content.appendChild(makeResult(node.tone, node.title, node.details));
+  }
+}
+
+function buildFlowFromData(){
+  const FLOW = { nodes:{} };
+  DATA.groups.domestic.forEach(b=>{
+    FLOW.nodes[`${b}_first`] = { type:"choice", question:`[${b}] ${DATA.text.domestic.q_hasWarranty}`, options:[
+      {label:"はい", next:`${b}_warranty_yes`},
+      {label:"いいえ", next:`${b}_nojima`}
+    ]};
+    FLOW.nodes[`${b}_warranty_yes`] = { type:"result", tone:"info", title:`[${b}] ${DATA.text.domestic.r_warranty_title}`, details: DATA.text.domestic.r_warranty_details };
+    FLOW.nodes[`${b}_nojima`] = { type:"choice", question:`[${b}] ${DATA.text.common.q_hasNojima}`, options:[
+      {label:"はい", next:`${b}_nojima_yes`},
+      {label:"いいえ", next:`${b}_prepay`}
+    ]};
+    FLOW.nodes[`${b}_nojima_yes`] = { type:"result", tone:"ok", title:`[${b}] ${DATA.text.domestic.r_nojima_ok_title}`, details: DATA.text.domestic.r_nojima_ok_details };
+    FLOW.nodes[`${b}_prepay`] = { type:"result", tone:"warn", title:`[${b}] ${DATA.text.domestic.r_prepay_title}`, details: DATA.text.domestic.r_prepay_details };
+  });
+  DATA.groups.overseas.forEach(b=>{
+    FLOW.nodes[`${b}_first`] = { type:"choice", question:`[${b}] ${DATA.text.overseas.q_hasWarranty}`, options:[
+      {label:"はい", next:`${b}_nojima`},
+      {label:"いいえ", next:`${b}_warn_cost`}
+    ]};
+    FLOW.nodes[`${b}_warn_cost`] = { type:"result", tone:"warn", title:`[${b}] ${DATA.text.overseas.r_warn_title}`, details: DATA.text.overseas.r_warn_details };
+    FLOW.nodes[`${b}_nojima`] = { type:"choice", question:`[${b}] ${DATA.text.common.q_hasNojima}`, options:[
+      {label:"はい", next:`${b}_store_ok`},
+      {label:"いいえ", next:`${b}_warn_cost`}
+    ]};
+    FLOW.nodes[`${b}_store_ok`] = { type:"result", tone:"ok", title:`[${b}] ${DATA.text.overseas.r_store_ok_title}`, details: DATA.text.overseas.r_store_ok_details };
+  });
+  DATA.groups.surface.forEach(b=>{
+    FLOW.nodes[`${b}_first`] = { type:"result", tone:"ng", title:`[${b}] ${DATA.text.surface.r_title}`, details: DATA.text.surface.r_details };
+  });
+  DATA.groups.apple.forEach(b=>{
+    FLOW.nodes[`${b}_first`] = { type:"choice", question:`[${b}] ${DATA.text.apple.q_hasWarranty}`, options:[
+      {label:"はい", next:`${b}_apple_direct`},
+      {label:"いいえ", next:`${b}_nojimaType`}
+    ]};
+    FLOW.nodes[`${b}_apple_direct`] = { type:"result", tone:"ng", title:`[${b}] ${DATA.text.apple.r_direct_title}`, details: DATA.text.apple.r_direct_details };
+    FLOW.nodes[`${b}_nojimaType`] = { type:"choice", question:`[${b}] ${DATA.text.apple.q_nojima_type}`, options:[
+      {label:DATA.text.apple.l_ultimate, next:`${b}_ultimate`},
+      {label:DATA.text.apple.l_premium_plus, next:`${b}_after_date`},
+      {label:DATA.text.apple.l_no_contract, next:`${b}_apple_direct2`}
+    ]};
+    FLOW.nodes[`${b}_ultimate`] = { type:"result", tone:"ok", title:`[${b}] ${DATA.text.apple.r_ultimate_title}`, details: DATA.text.apple.r_ultimate_details };
+    FLOW.nodes[`${b}_after_date`] = { type:"choice", question:`[${b}] ${DATA.text.apple.q_after_date}`, options:[
+      {label:"はい", next:`${b}_uchi_flow`},
+      {label:"いいえ", next:`${b}_pre_flow`}
+    ]};
+    FLOW.nodes[`${b}_uchi_flow`] = { type:"result", tone:"warn", title:`[${b}] ${DATA.text.apple.r_uchi_title}`, details: DATA.text.apple.r_uchi_details };
+    FLOW.nodes[`${b}_pre_flow`] = { type:"result", tone:"info", title:`[${b}] ${DATA.text.apple.r_pre_title}`, details: DATA.text.apple.r_pre_details };
+    FLOW.nodes[`${b}_apple_direct2`] = { type:"result", tone:"info", title:`[${b}] ${DATA.text.apple.r_direct2_title}`, details: DATA.text.apple.r_direct2_details };
+  });
+  return FLOW;
+}
+
+function render(){
+  renderPath();
+  if(state.current==="メーカー選択"){
+    renderStart();
+    document.getElementById('backBtn').style.display = state.history.length ? "inline-block" : "none";
+    return;
+  }
+  const node = FLOW.nodes[state.current];
+  const content = document.getElementById('content');
+  if(!node){ content.textContent="設定エラー：ノードが見つかりません - "+state.current; return; }
+  renderNode(node);
+  document.getElementById('backBtn').style.display = state.history.length ? "inline-block" : "none";
+}
+
+let FLOW = {nodes:{}};
+
+document.getElementById('resetBtn').onclick = ()=>{ state.history=[]; state.current="メーカー選択"; render(); };
+document.getElementById('backBtn').onclick = ()=>{ if(!state.history.length) return; const last=state.history.pop(); state.current=last.node; render(); };
+
+const STATUS_CLASS = {"採用":"ok","保留":"hold","却下":"reject"};
+async function loadLog(){
+  try{
+    const res = await fetch("update_log.json", {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }catch(e){
+    console.warn("update_log.json 読込失敗", e);
+    return [];
+  }
+}
+function renderLogRows(rows){
+  return rows.map(r=>{
+    const pillClass = STATUS_CLASS[r.status] || "hold";
+    const link = r.link ? `<div class="small"><a href="${r.link}" target="_blank" rel="noopener">参考資料</a></div>` : "";
+    return `<tr>
+      <td>${r.date||""}</td>
+      <td>${r.store||""}</td>
+      <td>${r.person||""}</td>
+      <td>${r.maker||""}</td>
+      <td>${r.summary||""}${link}</td>
+      <td><span class="pill ${pillClass}">${r.status||"保留"}</span></td>
+    </tr>`;
+  }).join("");
+}
+function renderLogTable(rows){
+  const header = `<table class="log"><thead><tr>
+      <th style="width:110px">日付</th>
+      <th style="width:140px">店舗</th>
+      <th style="width:120px">担当</th>
+      <th style="width:120px">メーカー</th>
+      <th>変更内容</th>
+      <th style="width:90px">状態</th>
+    </tr></thead><tbody>`;
+  const body = renderLogRows(rows);
+  const footer = `</tbody></table>`;
+  return header+body+footer;
+}
+function sortByDateDesc(rows){ return rows.slice().sort((a,b)=> (b.date||"").localeCompare(a.date||"")); }
+
+(async ()=>{
+  const fallbackData = {
+    "groups": {
+      "domestic": ["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
+      "overseas": ["ASUS","Dell","Lenovo","MSI"],
+      "surface": ["Surface"],
+      "apple": ["Apple"]
+    },
+    "text": {
+      "common": { "q_hasNojima": "ノジマの保証に入っていますか？" },
+      "domestic": {
+        "q_hasWarranty": "メーカー保証がありますか？",
+        "r_warranty_title": "メーカー保証内の受付（注意事項あり）",
+        "r_warranty_details": [
+          "メーカー保証内として受付します。",
+          "ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
+          "その旨をお伝えのうえ、受付を進めてください。"
+        ],
+        "r_nojima_ok_title": "店舗での修理受付：可能（ノジマ保証）",
+        "r_nojima_ok_details": [
+          "店舗での修理受付は可能です。",
+          "保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。",
+          "前受け金は必要ありません。"
+        ],
+        "r_prepay_title": "修理受付は可能（前受け金）",
+        "r_prepay_details": ["前受け金5,500円（現金のみ）をいただいて修理受付可能です。"]
+      },
+      "overseas": {
+        "q_hasWarranty": "メーカー保証がありますか？",
+        "r_warn_title": "修理受付可能（注意喚起）",
+        "r_warn_details": [
+          "ノジマでの修理受付は可能です。",
+          "ただし、メーカーへ直接依頼するより修理金額が高額になる場合があります。",
+          "お客様にご説明のうえ、ご判断を尊重してください。"
+        ],
+        "r_store_ok_title": "店舗での修理受付：対応可能",
+        "r_store_ok_details": [
+          "ノジマ保証加入のため、店舗で修理受付が可能です。",
+          "規約と必要書類を確認のうえ、受付手続きを進めてください。"
+        ]
+      },
+      "surface": {
+        "r_title": "店舗修理受付不可",
+        "r_details": ["当店での修理受付はできません。","お客様とメーカーで直接やり取りになります。"]
+      },
+      "apple": {
+        "q_hasWarranty": "メーカー保証に加入されていますか？",
+        "r_direct_title": "店頭受付不可（Appleへ直接案内）",
+        "r_direct_details": ["ノジマ店頭での修理受付はできません。","Appleとお客様で直接の修理対応をお願いします。"],
+        "q_nojima_type": "ノジマ保証のご加入状況を選択してください",
+        "l_ultimate": "① アルティメット保証に加入している",
+        "l_premium_plus": "② プレミアム保証プラスに加入している",
+        "l_no_contract": "③ 保証に入っていない",
+        "r_ultimate_title": "店舗での商品交換・ポイントバック対応（アルティメット保証）",
+        "r_ultimate_details": ["店舗での商品交換またはポイントバック対応が可能です。","マニュアルを確認しながら対応をお願いします。"],
+        "q_after_date": "2023年6月1日以降に購入されていますか？",
+        "r_uchi_title": "修理受付（内製修理で審査へ）",
+        "r_uchi_details": [
+          "提携修理先「ウチダエスコ」との修理契約が終了したため、修理ができません。",
+          "一度、内製修理に送って安心保障窓口で審査を行うため、修理の受付は行ってください。"
+        ],
+        "r_pre_title": "店頭修理受付（ポイントバック対応）",
+        "r_pre_details": [
+          "店頭での修理受付のフローは変わりません。",
+          "Apple用の製品修理申込書を記載の上、修理受付を行ってください。",
+          "結果としてポイントバックでの対応となります。",
+          "ただし、自然故障・物損の場合で若干フローが変わりますので、マニュアルの確認をお願いします。"
+        ],
+        "r_direct2_title": "Appleでの直接修理をご案内（未加入）",
+        "r_direct2_details": ["ノジマ保証に未加入のため、Appleでの直接修理をご案内ください。"]
+      }
+    }
+  };
+  DATA = await loadJSON("data.json", fallbackData);
+  window.DATA = DATA;
+  window.FLOW = buildFlowFromData();
+  render();
+
+  const log = sortByDateDesc(await loadLog());
+  const wrap = document.getElementById("logWrap");
+  function showLatest(){ wrap.innerHTML = renderLogTable(log.slice(0,10)); }
+  function showAll(){ wrap.innerHTML = renderLogTable(log); }
+  document.getElementById("showLatest").onclick = showLatest;
+  document.getElementById("showAll").onclick = showAll;
+  showLatest();
+})();
+</script>
+</body>
+</html>
