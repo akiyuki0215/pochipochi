@@ -100,7 +100,10 @@ const state={history:[],current:"メーカー選択"};
 function kanaKey(label){ return (KANA[normalizeKey(label)]||normalizeKey(label)); }
 function sortLabelsJa(arr){ return arr.slice().map(normalizeKey).sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja')); }
 
-async function loadJSON(path, fallback){
+
+DATAasync function init() {
+  try {
+    DATA = await loadJSON("data.json?v=" + Date.now(), fallback);
   try{ const res=await fetch(path,{cache:'no-store'}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json(); }
   catch(e){ console.warn(path+" 読込失敗。デフォルト使用",e); return fallback; }
 }
