@@ -102,6 +102,9 @@ function sortLabelsJa(arr){ return arr.slice().map(normalizeKey).sort((a,b)=>kan
 
 
 DATAasync function init() {
+async function init() {
+  try {
+    DATA = await loadJSON("data.json?v=" + Date.now(), fallback);async function init() {
   try {
     DATA = await loadJSON("data.json?v=" + Date.now(), fallback);
   try{ const res=await fetch(path,{cache:'no-store'}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json(); }
