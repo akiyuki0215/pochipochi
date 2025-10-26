@@ -1,9 +1,24 @@
 {
   "groups": {
-    "domestic": ["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
-    "overseas": ["ASUS","Dell","Lenovo","MSI"],
-    "surface": ["Surface"],
-    "apple": ["Apple"]
+    "domestic": [
+      "NEC",
+      "Fujitsu",
+      "Dynabook",
+      "VAIO",
+      "Mouse Computer"
+    ],
+    "overseas": [
+      "ASUS",
+      "Dell",
+      "Lenovo",
+      "MSI"
+    ],
+    "surface": [
+      "Surface"
+    ],
+    "apple": [
+      "Apple"
+    ]
   },
   "text": {
     "common": {
@@ -23,7 +38,7 @@
         "保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。",
         "前受け金は必要ありません。"
       ],
-      "r_prepay_title": "修理受付は可能（前受け金）",
+      "r_prepay_title": "修理受付は可能（前受け金あり）",
       "r_prepay_details": [
         "前受け金5,500円（現金のみ）をいただいて修理受付可能です。"
       ]
