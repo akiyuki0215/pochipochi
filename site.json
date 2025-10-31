@@ -1,0 +1,9 @@
+{
+  "title": "店頭対応ナビ（MVP）",
+  "menu": {
+    "feedbackText": "要望を出す"
+  },
+  "feedback": {
+    "endpoint": ""
+  }
+}
