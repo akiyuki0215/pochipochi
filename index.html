@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店頭対応ナビ（MVP）</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:"Noto Sans JP",sans-serif;background:#f8fafc;margin:0;color:#111827}
+header{background:#004c99;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.container{max-width:900px;margin:20px auto;padding:0 16px}
+.btn{background:#e0e7ff;color:#1e3a8a;border:none;border-radius:8px;padding:8px 14px;margin:6px;cursor:pointer;font-weight:600}
+.btn:hover{background:#c7d2fe}
+.result{border:2px solid #cbd5e1;border-radius:8px;padding:10px;margin-top:8px;background:#fff}
+.path{font-size:12px;color:#6b7280;margin-bottom:8px}
+details{background:#fff;border:1px solid #d1d5db;border-radius:8px;margin-top:12px;padding:8px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div style="font-size:20px;font-weight:700;">店頭対応ナビ（MVP）</div>
+    <div style="font-size:12px;">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
+  </div>
+  <a id="formLink" href="https://forms.gle/2Sq1DwiNAvbHcRzG9" target="_blank" rel="noopener" class="btn">✉️ 意見を送る</a>
+</header>
+
+<main class="container">
+  <div class="path" id="path">進行: メーカー選択</div>
+  <div id="content">読み込み中...</div>
+  <div style="margin-top:10px">
+    <button class="btn" id="backBtn" style="display:none">← 戻る</button>
+    <button class="btn" id="resetBtn">最初から</button>
+  </div>
+  <details id="historyAcc">
+    <summary>🕓 更新履歴（タップで開閉）</summary>
+    <p style="font-size:12px;color:#6b7280;">※ 今後のバージョンで update_log.json から読み込みます。</p>
+  </details>
+</main>
+
+<script>
+const FORM_URL = "https://forms.gle/2Sq1DwiNAvbHcRzG9";
+let DATA=null; const state={history:[],current:"メーカー選択"}; let FLOW={nodes:{}};
+
+async function loadJSON(path,fallback){
+  try{const res=await fetch(path,{cache:'no-store'});if(!res.ok)throw new Error(res.status);return await res.json();}
+  catch(e){return fallback;}
+}
+function normalize(s){return String(s).replace(/\s+/g,' ').trim();}
+
+function renderStart(){
+  const c=document.getElementById("content");c.innerHTML="";
+  [["国内メーカー",["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"]],
+   ["海外メーカー",["ASUS","Dell","Lenovo","MSI"]],
+   ["Surface",["Surface"]],
+   ["Apple",["Apple"]]].forEach(([t,arr])=>{
+    const h=document.createElement("h3");h.textContent=t;c.appendChild(h);
+    arr.forEach(x=>{const b=document.createElement("button");b.className="btn";b.textContent=x;b.onclick=()=>{state.history.push({node:state.current,choice:x});state.current=x+"_first";render();};c.appendChild(b);});
+  });
+}
+
+function render(){
+  const c=document.getElementById("content");
+  if(state.current==="メーカー選択"){renderStart();document.getElementById("backBtn").style.display="none";return;}
+  c.innerHTML="<div class='result'><h2>"+state.current+"</h2><p>詳細は data.json に基づき表示されます。</p></div>";
+  document.getElementById("backBtn").style.display=state.history.length?"inline-block":"none";
+}
+
+document.getElementById("resetBtn").onclick=()=>{state.history=[];state.current="メーカー選択";render();};
+document.getElementById("backBtn").onclick=()=>{if(!state.history.length)return;const last=state.history.pop();state.current=last.node;render();};
+
+(async()=>{DATA=await loadJSON("data.json",{});render();})();
+</script>
+</body>
+</html>
