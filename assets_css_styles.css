@@ -1,0 +1,43 @@
+:root{
+  --brand-grad-start:#0d6efd;
+  --brand-grad-end:#0aa0ff;
+  --brand-text:#fff;
+  --text:#222;
+  --muted:#666;
+  --bg:#fff;
+  --border:#e5e7eb;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--bg);}
+/* Topbar */
+.topbar{
+  position:sticky;top:0;z-index:1000;
+  display:flex;align-items:center;gap:.5rem;
+  padding:.6rem .9rem;
+  background:linear-gradient(90deg,var(--brand-grad-start),var(--brand-grad-end));
+  color:var(--brand-text);
+}
+.brand .title{font-weight:700;letter-spacing:.02em;}
+/* Nav defaults to visible (CSS-only). JS enhances mobile only. */
+.nav{margin-left:auto;display:flex;gap:.25rem;align-items:center;}
+.nav-link{color:var(--brand-text);text-decoration:none;padding:.45rem .65rem;border-radius:.4rem;opacity:.95;}
+.nav-link:hover{background:rgba(255,255,255,.15);opacity:1;}
+.nav-cta{background:rgba(255,255,255,.18);font-weight:600;}
+.nav-cta:hover{background:rgba(255,255,255,.28);}
+.hamburger{display:none;margin-left:auto;background:transparent;border:0;cursor:pointer;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--brand-text);margin:5px 0;}
+.container{max-width:980px;margin:1.25rem auto;padding:0 1rem;}
+.hero{background:#f8fafc;border:1px solid var(--border);border-radius:.75rem;padding:1.25rem;}
+.card{display:grid;gap:.5rem;padding:1rem;border:1px solid var(--border);border-radius:.5rem;background:#fff;max-width:720px;}
+.card input,.card select,.card textarea{width:100%;padding:.6rem;border:1px solid var(--border);border-radius:.4rem;font:inherit;}
+.btn{padding:.6rem 1rem;border:0;border-radius:.4rem;background:#0d6efd;color:#fff;cursor:pointer;}
+.btn:hover{filter:brightness(1.05);}
+.list{padding-left:1.1rem;}
+/* Mobile (JS turns on .js class on html; then we hide until burger opens) */
+@media (max-width: 768px){
+  .js .hamburger{display:block;}
+  .js .nav{display:none;position:absolute;right:.75rem;top:56px;flex-direction:column;background:#0d6efd;border:1px solid rgba(255,255,255,.2);border-radius:.5rem;padding:.3rem;width:min(70vw,300px);}
+  .js .nav.open{display:flex;}
+  .nav-link{display:block;width:100%;}
+}
