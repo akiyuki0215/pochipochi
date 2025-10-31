@@ -1,346 +1,106 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>店頭対応ナビ（MVP）</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{ --brand:#004c99; --brand-dark:#00396f; --bg:#f5f7fb; --text:#1b1f24; --muted:#4b5563;
-         --card:#fff; --border:#e5e7eb; --ok:#16a34a; --warn:#f59e0b; --ng:#ef4444; --info:#3b82f6; }
-  *{box-sizing:border-box}
-  body{margin:0;background:linear-gradient(180deg,#f7fbff 0%%, #eef3fa 100%%);color:var(--text);
-       font-family:"Noto Sans JP", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;}
-  .site-header{position:sticky;top:0;z-index:10;background:linear-gradient(90deg,var(--brand),var(--brand-dark));
-               color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;
-               box-shadow:0 4px 16px rgba(0,0,0,.08)}
-  .site-header .title{font-size:20px;font-weight:700}
-  .site-header .subtitle{opacity:.9;font-size:12px}
-  .site-actions a{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:10px;
-                  background:#ffffff18;border:1px solid #ffffff40;color:#fff;text-decoration:none;font-weight:700}
-  .container{max-width:980px;margin:24px auto;padding:0 14px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;
-        box-shadow:0 6px 20px rgba(0,0,0,.06);margin-bottom:16px}
-  .path{font-size:12px;color:var(--muted);margin-bottom:6px}
-  .section{margin:8px 0}
-  .section h3{margin:8px 2px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;min-width:120px;
-       border:1px solid #cdd6e6;border-radius:10px;cursor:pointer;margin:8px 8px 0 0;
-       background:linear-gradient(180deg,#ffffff 0%%, #f3f6fb 100%%);font-weight:700;color:#0f172a;transition:.18s ease;}
-  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(2,6,23,.08)}
-  .btn.primary{border-color:#a8c6ff;background:linear-gradient(180deg,#e9f2ff 0%%, #dbe9ff 100%%)}
-  .btn.form{border-color:#a8c6ff;background:linear-gradient(180deg,#e9f2ff 0%%, #dbe9ff 100%%)}
-  .result{border:1px solid var(--border);border-radius:14px;padding:14px;background:#fcfffd}
-  .result h2{margin:0 0 6px 0;font-size:18px}
-  .result p{margin:6px 0}
-  .result.ok{border-left:4px solid var(--ok)} .result.warn{border-left:4px solid var(--warn)}
-  .result.ng{border-left:4px solid var(--ng)} .result.info{border-left:4px solid var(--info)}
-  details.acc{border:1px solid var(--border);border-radius:14px;background:#fff;margin:10px 0;overflow:hidden}
-  details.acc > summary{padding:12px 14px;font-weight:700;cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center;background:#f6f9ff}
-  details.acc > summary::-webkit-details-marker{display:none}
-  .chev{transition:.15s ease;display:inline-block}
-  details.acc[open] .chev{transform:rotate(90deg)}
-  .log{width:100%%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
-  .log th,.log td{font-size:13px;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
-  .log thead th{background:#f0f5ff}
-  .row-detail{display:none;background:#fafcff}
-  .pill{display:inline-block;border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:12px;color:#334155}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>店頭対応ナビ (MVP)</title>
+  <style>
+    body {
+      font-family: "Noto Sans JP", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6fa;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(135deg, #0046ad, #1976d2);
+      color: white;
+      padding: 16px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .container {
+      max-width: 900px;
+      margin: 24px auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      margin: 10px 0;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #125aa5;
+    }
+    .menu {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .menu button {
+      flex: 1 1 180px;
+    }
+    footer {
+      text-align: center;
+      color: #777;
+      font-size: 13px;
+      margin-top: 30px;
+    }
+    .feedback {
+      text-align: center;
+      margin-top: 30px;
+    }
+  </style>
 </head>
+
 <body>
-<header class="site-header">
-  <div>
-    <div class="title">店頭対応ナビ（MVP）</div>
-    <div class="subtitle">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
-  </div>
-  <div class="site-actions">
-    <a id="formLink" class="btn form" href="#" target="_blank" rel="noopener">✉️ 意見を送る</a>
-  </div>
-</header>
+  <header>店頭対応ナビ（MVP）</header>
 
-<main class="container">
-  <div class="card">
-    <div class="path" id="path">進行: メーカー選択</div>
-    <div id="content">読み込み中…</div>
-    <div style="margin-top:10px">
-      <button class="btn" id="backBtn" style="display:none">← ひとつ戻る</button>
-      <button class="btn primary" id="resetBtn">最初から</button>
+  <div class="container">
+    <p>メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を。</p>
+
+    <div class="menu">
+      <button onclick="navigate('domestic')">国内メーカー</button>
+      <button onclick="navigate('overseas')">海外メーカー</button>
+      <button onclick="navigate('Surface')">Surface</button>
+      <button onclick="navigate('Apple')">Apple</button>
+    </div>
+
+    <div class="feedback">
+      <h3>💬 意見・改善提案を送る</h3>
+      <button onclick="openFeedback()">Googleフォームを開く</button>
     </div>
   </div>
 
-  <details class="acc card" id="historyAcc">
-    <summary><span class="chev">▶</span> 🕓 更新履歴（タップで開閉）</summary>
-    <div class="acc-body">
-      <div id="logWrap" style="margin-top:6px;color:#64748b">※ サンプル：運用開始後に update_log.json から読み込みます。</div>
-    </div>
-  </details>
-</main>
+  <footer>
+    © 2025 店頭対応ナビ / JSONナレッジ管理システム
+  </footer>
 
-<script>
-  const FORM_URL = "https://forms.gle/your-form-url";
+  <script>
+    // 🔗 GoogleフォームURL
+    const FORM_URL = "https://forms.gle/2Sq1DwiNAvbHcRzG9";
 
-  function normalizeKey(s){ return String(s).replace(/\s+/g,' ').trim(); }
-  const KANA={"NEC":"エヌイーシー","Fujitsu":"フジツウ","Lenovo":"レノボ","Surface":"サーフェス","Dell":"デル","ASUS":"エイスース","Dynabook":"ダイナブック","MSI":"エムエスアイ","VAIO":"バイオ","Mouse Computer":"マウスコンピューター","Apple":"アップル"};
-  function kanaKey(label){ return (KANA[normalizeKey(label)]||normalizeKey(label)); }
-  function sortLabelsJa(arr){ return arr.slice().map(normalizeKey).sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja')); }
-
-  let DATA=null;
-  const state={history:[],current:"メーカー選択"};
-  let FLOW={nodes:{}};
-
-  async function loadJSON(path, fallback){
-    try{ const res=await fetch(path,{cache:'no-store'}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json(); }
-    catch(e){ console.warn(path+" 読込失敗。fallback使用",e); return fallback; }
-  }
-  function renderPath(){ const p=["メーカー選択",...state.history.map(h=>h.choice||h.node)]; document.getElementById('path').textContent="進行: "+p.join(" > "); }
-
-  function sectionButtons(title, brands){
-    const wrap=document.createElement('div'); wrap.className="section";
-    const h=document.createElement('h3'); h.textContent=title; wrap.appendChild(h);
-    const box=document.createElement('div');
-    sortLabelsJa(brands).forEach(raw=>{
-      const name=normalizeKey(raw);
-      const b=document.createElement('button'); b.className="btn"; b.textContent=name;
-      b.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=name+"_first"; render(); };
-      box.appendChild(b);
-    });
-    wrap.appendChild(box);
-    return wrap;
-  }
-
-  function renderStart(){
-    const c=document.getElementById('content'); c.innerHTML="";
-    const g=DATA.groups;
-    c.appendChild(sectionButtons("国内メーカー", g.domestic));
-    c.appendChild(sectionButtons("海外メーカー", g.overseas));
-    c.appendChild(sectionButtons("Surface", g.surface));
-    c.appendChild(sectionButtons("Apple", g.apple));
-  }
-
-  function makeResult(tone,title,lines){
-    const wrap=document.createElement('div'); wrap.className=`result ${tone||'info'}`;
-    const h=document.createElement('h2'); h.textContent=title||"結果"; wrap.appendChild(h);
-    (lines||[]).forEach(t=>{ const p=document.createElement('p'); p.textContent=t; wrap.appendChild(p); });
-    return wrap;
-  }
-
-  function renderNode(node){
-    const c=document.getElementById('content'); c.innerHTML="";
-    if(node.type==="choice"){
-      const q=document.createElement('h2'); q.textContent=node.question||"選択してください"; c.appendChild(q);
-      node.options.forEach(opt=>{
-        const b=document.createElement('button'); b.className="btn primary"; b.textContent=opt.label;
-        b.onclick=()=>{ state.history.push({node:state.current,choice:opt.label}); state.current=opt.next; render(); };
-        c.appendChild(b);
-      });
-      const note=document.createElement('div'); note.style.color="#64748b"; note.style.fontSize="12px"; note.textContent="※「← ひとつ戻る」で前の質問に戻れます"; c.appendChild(note);
-    }else{
-      c.appendChild(makeResult(node.tone,node.title,node.details));
+    // ボタン動作
+    function navigate(section) {
+      alert(`${section} のメニューへ移動します（機能テスト用）`);
     }
-  }
 
-  function buildFlowFromData(){
-    const FLOW={nodes:{}};
-    // Domestic
-    DATA.groups.domestic.map(normalizeKey).forEach(b=>{
-      FLOW.nodes[`${b}_first`]={type:"choice",question:`[${b}] ${DATA.text.domestic.q_hasWarranty}`,options:[
-        {label:"はい",next:`${b}_warranty_yes`},
-        {label:"いいえ",next:`${b}_nojima`}
-      ]};
-      FLOW.nodes[`${b}_warranty_yes`] = {type:"result",tone:"info",title:`[${b}] ${DATA.text.domestic.r_warranty_title}`,details:DATA.text.domestic.r_warranty_details};
-      FLOW.nodes[`${b}_nojima`] = {type:"choice",question:`[${b}] ${DATA.text.common.q_hasNojima}`,options:[
-        {label:"はい",next:`${b}_nojima_yes`},
-        {label:"いいえ",next:`${b}_prepay`}
-      ]};
-      FLOW.nodes[`${b}_nojima_yes`] = {type:"result",tone:"ok",title:`[${b}] ${DATA.text.domestic.r_nojima_ok_title}`,details:DATA.text.domestic.r_nojima_ok_details};
-      FLOW.nodes[`${b}_prepay`] = {type:"result",tone:"warn",title:`[${b}] ${DATA.text.domestic.r_prepay_title}`,details:DATA.text.domestic.r_prepay_details};
-    });
-    // Overseas
-    DATA.groups.overseas.map(normalizeKey).forEach(b=>{
-      FLOW.nodes[`${b}_first`]={type:"choice",question:`[${b}] ${DATA.text.overseas.q_hasWarranty}`,options:[
-        {label:"はい",next:`${b}_nojima`},
-        {label:"いいえ",next:`${b}_warn_cost`}
-      ]};
-      FLOW.nodes[`${b}_warn_cost`] = {type:"result",tone:"warn",title:`[${b}] ${DATA.text.overseas.r_warn_title}`,details:DATA.text.overseas.r_warn_details};
-      FLOW.nodes[`${b}_nojima`] = {type:"choice",question:`[${b}] ${DATA.text.common.q_hasNojima}`,options:[
-        {label:"はい",next:`${b}_store_ok`},
-        {label:"いいえ",next:`${b}_warn_cost`}
-      ]};
-      FLOW.nodes[`${b}_store_ok`] = {type:"result",tone:"ok",title:`[${b}] ${DATA.text.overseas.r_store_ok_title}`,details:DATA.text.overseas.r_store_ok_details};
-    });
-    // Surface
-    DATA.groups.surface.map(normalizeKey).forEach(b=>{
-      FLOW.nodes[`${b}_first`] = {type:"result",tone:"ng",title:`[${b}] ${DATA.text.surface.r_title}`,details:DATA.text.surface.r_details};
-    });
-    // Apple
-    DATA.groups.apple.map(normalizeKey).forEach(b=>{
-      FLOW.nodes[`${b}_first`] = {type:"choice",question:`[${b}] ${DATA.text.apple.q_hasWarranty}`,options:[
-        {label:"はい",next:`${b}_apple_direct`},
-        {label:"いいえ",next:`${b}_nojimaType`}
-      ]};
-      FLOW.nodes[`${b}_apple_direct`] = {type:"result",tone:"ng",title:`[${b}] ${DATA.text.apple.r_direct_title}`,details:DATA.text.apple.r_direct_details};
-      FLOW.nodes[`${b}_nojimaType`] = {type:"choice",question:`[${b}] ${DATA.text.apple.q_nojima_type}`,options:[
-        {label:DATA.text.apple.l_ultimate,next:`${b}_ultimate`},
-        {label:DATA.text.apple.l_premium_plus,next:`${b}_after_date`},
-        {label:DATA.text.apple.l_no_contract,next:`${b}_apple_direct2`}
-      ]};
-      FLOW.nodes[`${b}_ultimate`] = {type:"result",tone:"ok",title:`[${b}] ${DATA.text.apple.r_ultimate_title}`,details:DATA.text.apple.r_ultimate_details};
-      FLOW.nodes[`${b}_after_date`] = {type:"choice",question:`[${b}] ${DATA.text.apple.q_after_date}`,options:[
-        {label:"はい",next:`${b}_uchi_flow`},
-        {label:"いいえ",next:`${b}_pre_flow`}
-      ]};
-      FLOW.nodes[`${b}_uchi_flow`] = {type:"result",tone:"warn",title:`[${b}] ${DATA.text.apple.r_uchi_title}`,details:DATA.text.apple.r_uchi_details};
-      FLOW.nodes[`${b}_pre_flow`] = {type:"result",tone:"info",title:`[${b}] ${DATA.text.apple.r_pre_title}`,details:DATA.text.apple.r_pre_details};
-      FLOW.nodes[`${b}_apple_direct2`] = {type:"result",tone:"info",title:`[${b}] ${DATA.text.apple.r_direct2_title}`,details:DATA.text.apple.r_direct2_details};
-    });
-    return FLOW;
-  }
-
-  function render(){
-    const atTop = (state.current === "メーカー選択");
-    document.getElementById('historyAcc').style.display = atTop ? "block" : "none";
-    const formBtn = document.getElementById('formLink');
-    if (formBtn) formBtn.style.display = atTop && FORM_URL ? "inline-flex" : "none";
-    renderPath();
-    if(atTop){ renderStart(); document.getElementById('backBtn').style.display="none"; return; }
-    const node=FLOW.nodes[state.current];
-    const c=document.getElementById('content'); c.innerHTML="";
-    if(!node){
-      const wrap=document.createElement('div'); wrap.className="result warn";
-      wrap.innerHTML=`<h2>設定エラー：ノードが見つかりません</h2><p>キー: ${state.current}</p>`;
-      c.appendChild(wrap); return;
+    function openFeedback() {
+      window.open(FORM_URL, "_blank");
     }
-    renderNode(node);
-    document.getElementById('backBtn').style.display=state.history.length?"inline-flex":"none";
-  }
-
-  document.getElementById('resetBtn').onclick=()=>{ state.history=[]; state.current="メーカー選択"; render(); };
-  document.getElementById('backBtn').onclick=()=>{ if(!state.history.length) return; const last=state.history.pop(); state.current=last.node; render(); };
-  const formLink = document.getElementById('formLink'); if (formLink && FORM_URL) formLink.href = FORM_URL;
-
-  const fallback = {
-  "groups": {
-    "domestic": [
-      "NEC",
-      "Fujitsu",
-      "Dynabook",
-      "VAIO",
-      "Mouse Computer"
-    ],
-    "overseas": [
-      "ASUS",
-      "Dell",
-      "Lenovo",
-      "MSI"
-    ],
-    "surface": [
-      "Surface"
-    ],
-    "apple": [
-      "Apple"
-    ]
-  },
-  "text": {
-    "common": {
-      "q_hasNojima": "ノジマの保証に入っていますか？"
-    },
-    "domestic": {
-      "q_hasWarranty": "メーカー保証の期間内ですか？",
-      "r_warranty_title": "メーカー保証内の受付（注意事項あり）",
-      "r_warranty_details": [
-        "メーカー保証内として受付します。",
-        "ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
-        "その旨をお伝えのうえ、受付を進めてください。",
-        "メーカー保証書等を添付の上、修理受付をしてください。"
-      ],
-      "r_nojima_ok_title": "店舗での修理受付：可能（ノジマ保証）",
-      "r_nojima_ok_details": [
-        "店舗での修理受付は可能です。",
-        "保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。",
-        "前受け金は必要ありません。"
-      ],
-      "r_prepay_title": "修理受付は可能（前受け金あり）",
-      "r_prepay_details": [
-        "前受け金5,500円（現金のみ）をいただいて修理受付可能です。",
-        "メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額修正OK。",
-        "BYOD→業務メニュー→ガイドライン【文章管理】→第07章 修理業務→「修理受付のよくある質問」→「前受金に関すること 」参照"
-      ]
-    },
-    "overseas": {
-      "q_hasWarranty": "メーカー保証の期間内ですか？",
-      "r_warranty_title": "メーカー保証内の受付（注意事項あり）",
-      "r_warranty_details": [
-        "メーカー保証内として受付します。",
-        "ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
-        "その旨をお伝えのうえ、受付を進めてください。",
-        "メーカー保証書等を添付の上、修理受付をしてください。"
-      ],
-      "r_warn_title": "修理受付可能（ご説明のお願い）",
-      "r_warn_details": [
-        "ノジマでの修理受付が可能です。",
-        "ただし万が一有償修理の場合、お客様とメーカーが直接やり取りするより高額になる場合があります。",
-        "ご説明の上、判断を尊重してください。",
-        "メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額修正OK。",
-        "BYOD→業務メニュー→ガイドライン【文章管理】→第07章 修理業務→「修理受付のよくある質問」→「前受金に関すること 」参照"
-      ],
-      "r_store_ok_title": "店舗での修理受付：対応可能（ノジマ保証）",
-      "r_store_ok_details": [
-        "ノジマ保証加入のため、店舗で修理受付が可能です。",
-        "規約と必要書類を確認のうえ、受付手続きを進めてください。",
-        "※ 症状未再現やお客様都合の修理中止時は見積り代がかかる場合があります。"
-      ]
-    },
-    "surface": {
-      "r_title": "店舗修理受付不可",
-      "r_details": [
-        "当店での修理受付はできません。",
-        "お客様とメーカーで直接やり取りになります。"
-      ]
-    },
-    "apple": {
-      "q_hasWarranty": "メーカー保証の期間内ですか？",
-      "r_direct_title": "店頭受付不可（Appleへ直接案内）",
-      "r_direct_details": [
-        "ノジマ店頭での修理受付はできません。",
-        "Appleとお客様で直接の修理対応をお願いします。"
-      ],
-      "q_nojima_type": "ノジマ保証のご加入状況を選択してください",
-      "l_ultimate": "① アルティメット保証に加入している",
-      "l_premium_plus": "② プレミアム保証プラスに加入している",
-      "l_no_contract": "③ 保証に入っていない",
-      "r_ultimate_title": "店舗での商品交換・ポイントバック対応（アルティメット保証）",
-      "r_ultimate_details": [
-        "店舗での商品交換またはポイントバック対応が可能です。",
-        "マニュアルを確認しながら対応をお願いします。"
-      ],
-      "q_after_date": "2023年6月1日以降に購入されていますか？",
-      "r_uchi_title": "修理受付（内製修理で審査へ）",
-      "r_uchi_details": [
-        "Apple用の製品修理申込書を記載の上、修理受付を行ってください。",
-        "ポイントバックでの対応になります。",
-        "自然故障、物損の場合でフローが変わるので、詳しくはMD等への確認を行ってください。"
-      ],
-      "r_pre_title": "店頭修理受付（ポイントバック対応）",
-      "r_pre_details": [
-        "通常通り修理受付をしてください。",
-        "提携修理先ウチダエスコでの修理対応になります。",
-        "Apple用製品修理申込書を記載の上、修理受付を行ってください。"
-      ],
-      "r_direct2_title": "Appleでの直接修理をご案内（未加入）",
-      "r_direct2_details": [
-        "ノジマ保証に未加入のため、Appleでの直接修理をご案内ください。"
-      ]
-    }
-  }
-};
-
-  (async ()=>{
-    DATA = await loadJSON("data.json?v="+Date.now(), fallback);
-    FLOW = buildFlowFromData();
-    render();
-  })();
-</script>
+  </script>
 </body>
 </html>
