@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店頭対応ナビ（MVP）</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#004c99;--ink:#111827;--muted:#6b7280;--card:#ffffff;--line:#d1d5db;--btn:#e0e7ff;--btn-ink:#1e3a8a}
+*{box-sizing:border-box}
+body{font-family:"Noto Sans JP",sans-serif;background:#f8fafc;margin:0;color:var(--ink)}
+header{background:linear-gradient(90deg,#004c99,#0a66c2);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.container{max-width:980px;margin:20px auto;padding:0 16px}
+h3{margin:14px 0 8px 0}
+.btn{background:var(--btn);color:var(--btn-ink);border:none;border-radius:10px;padding:10px 16px;margin:8px 8px 0 0;cursor:pointer;font-weight:700;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+.btn:hover{filter:brightness(.97)}
+.toolbar{margin-top:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px}
+.path{font-size:12px;color:var(--muted);margin:6px 0 10px}
+details.acc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:16px}
+#debug{display:none;margin-top:8px;border-left:4px solid #ef4444;background:#fff1f2;padding:8px 10px;border-radius:6px}
+footer{padding:16px 0 40px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div style="font-size:20px;font-weight:700;">店頭対応ナビ（MVP）</div>
+    <div style="font-size:12px;opacity:.9">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
+  </div>
+  <a id="formLink" href="https://forms.gle/2Sq1DwiNAvbHcRzG9" target="_blank" rel="noopener" class="btn">✉️ 意見・改善提案</a>
+</header>
+
+<main class="container">
+  <div class="path" id="path">進行：メーカー選択</div>
+  <div id="content" class="card">読み込み中...</div>
+  <div class="toolbar">
+    <button class="btn" id="backBtn" style="display:none">← 戻る</button>
+    <button class="btn" id="resetBtn">最初から</button>
+  </div>
+
+  <details class="acc" id="historyAcc">
+    <summary>🕓 更新履歴（タップで開閉）</summary>
+    <div id="history">読み込み中...</div>
+  </details>
+
+  <div id="debug"></div>
+</main>
+
+<footer>© Niigata Division</footer>
+
+<script>
+const FORM_URL = "https://forms.gle/2Sq1DwiNAvbHcRzG9";
+let DATA=null; const state={history:[],current:"メーカー選択"}; let FLOW={nodes:{}};
+
+function showError(msg){
+  const box=document.getElementById('debug');
+  box.textContent="エラー: "+msg;
+  box.style.display='block';
+}
+
+async function loadJSON(path){
+  const res = await fetch(path,{cache:'no-store'});
+  if(!res.ok) throw new Error(path+" の取得に失敗（HTTP "+res.status+"）");
+  return await res.json();
+}
+
+function renderStart(){
+  const c=document.getElementById("content"); c.innerHTML="";
+  const groups = (DATA && DATA.groups) ? DATA.groups : {
+    domestic:["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
+    overseas:["ASUS","Dell","Lenovo","MSI"],
+    surface:["Surface"],
+    apple:["Apple"]
+  };
+  [
+    ["国内メーカー",groups.domestic],
+    ["海外メーカー",groups.overseas],
+    ["Surface",groups.surface],
+    ["Apple",groups.apple]
+  ].forEach(([title, arr])=>{
+    const h=document.createElement("h3"); h.textContent=title; c.appendChild(h);
+    const wrap=document.createElement("div"); c.appendChild(wrap);
+    (arr||[]).forEach(name=>{
+      const b=document.createElement("button"); b.className="btn"; b.textContent=name;
+      b.onclick=()=>{state.history.push({node:state.current,choice:name}); state.current=name+"_first"; render();};
+      wrap.appendChild(b);
+    });
+  });
+}
+
+function renderNode(node){
+  const c=document.getElementById("content"); c.innerHTML="";
+  if(node.type==="choice"){
+    const q=document.createElement("h2"); q.textContent=node.question; c.appendChild(q);
+    node.options.forEach(opt=>{
+      const b=document.createElement("button"); b.className="btn"; b.textContent=opt.label;
+      b.onclick=()=>{state.history.push({node:state.current,choice:opt.label}); state.current=opt.next; render();};
+      c.appendChild(b);
+    });
+  }else{
+    const box=document.createElement("div"); box.className="card";
+    const h=document.createElement("h2"); h.textContent=node.title; box.appendChild(h);
+    (node.details||[]).forEach(t=>{const p=document.createElement("p"); p.textContent=t; box.appendChild(p);});
+    c.appendChild(box);
+  }
+}
+
+function buildFlow(){
+  const flow={nodes:{}}; const D=DATA;
+  // Domestic
+  (D.groups.domestic||[]).forEach(b=>{
+    flow.nodes[b+"_first"]={type:"choice",question:"["+b+"] "+D.text.domestic.q_hasWarranty,
+      options:[{label:"はい",next:b+"_y"},{label:"いいえ",next:b+"_n"}]};
+    flow.nodes[b+"_y"]={type:"result",title:D.text.domestic.r_warranty_title,details:D.text.domestic.r_warranty_details};
+    flow.nodes[b+"_n"]={type:"choice",question:D.text.common.q_hasNojima,
+      options:[{label:"はい",next:b+"_noj_yes"},{label:"いいえ",next:b+"_pre"}]};
+    flow.nodes[b+"_noj_yes"]={type:"result",title:D.text.domestic.r_nojima_ok_title,details:D.text.domestic.r_nojima_ok_details};
+    flow.nodes[b+"_pre"]={type:"result",title:D.text.domestic.r_prepay_title,details:D.text.domestic.r_prepay_details};
+  });
+  // Overseas (最初の質問だけサンプル接続・結果画面は共通文言に遷移)
+  (D.groups.overseas||[]).forEach(b=>{
+    flow.nodes[b+"_first"]={type:"choice",question:"["+b+"] "+D.text.overseas.q_hasWarranty,
+      options:[{label:"はい",next:b+"_yw"},{label:"いいえ",next:b+"_nw"}]};
+    flow.nodes[b+"_yw"]={type:"result",title:D.text.overseas.r_store_ok_title,details:D.text.overseas.r_store_ok_details};
+    flow.nodes[b+"_nw"]={type:"result",title:D.text.overseas.r_no_warranty_title,details:D.text.overseas.r_no_warranty_details.concat(D.text.overseas.r_warn_details)};
+  });
+  // Surface 固定
+  (D.groups.surface||[]).forEach(b=>{
+    flow.nodes[b+"_first"]={type:"result",title:D.text.surface.r_title,details:D.text.surface.r_details};
+  });
+  // Apple（最初のステップのみ。詳細分岐は既存版に合わせて編集可能）
+  (D.groups.apple||[]).forEach(b=>{
+    flow.nodes[b+"_first"]={type:"choice",question:"["+b+"] "+D.text.apple.q_hasWarranty,
+      options:[{label:"はい",next:b+"_direct"},{label:"いいえ",next:b+"_noj"}]};
+    flow.nodes[b+"_direct"]={type:"result",title:D.text.apple.r_direct_title,details:D.text.apple.r_direct_details};
+    flow.nodes[b+"_noj"]={type:"result",title:"ノジマ保証の選択へ",details:["トップに戻り保証別フローからご案内ください。"]};
+  });
+  return flow;
+}
+
+function render(){
+  document.getElementById("path").textContent = (state.history.length? "進行："+state.history.map(h=>h.choice).join(" > ") : "進行：メーカー選択");
+  if(state.current==="メーカー選択"){ renderStart(); document.getElementById("backBtn").style.display="none"; return; }
+  const node = FLOW.nodes[state.current];
+  if(!node){ showError("ノードが見つかりません: "+state.current); state.current="メーカー選択"; renderStart(); return; }
+  renderNode(node);
+  document.getElementById("backBtn").style.display = state.history.length ? "inline-block":"none";
+}
+
+document.getElementById("resetBtn").onclick=()=>{state.history=[];state.current="メーカー選択";render();};
+document.getElementById("backBtn").onclick=()=>{if(!state.history.length)return;const last=state.history.pop();state.current=last.node;render();};
+
+(async ()=>{
+  try{
+    DATA = await loadJSON("data.json");
+  }catch(e){
+    showError(e.message + " ／ フォールバックで最低限のUIを表示します。");
+    DATA = {groups:{},text:{domestic:{},overseas:{},surface:{},apple:{},common:{}}}; // 最低限
+  }
+  try{
+    const logs = await loadJSON("update_log.json");
+    const box = document.getElementById("history");
+    box.innerHTML = logs.map(row => 
+      `<div class="card"><div><b>${row.date}</b>｜${row.store}（${row.person}）｜${row.maker}</div><div style="color:#374151">${row.change}</div><div style="font-size:12px;color:#6b7280">${row.status}</div></div>`
+    ).join("");
+  }catch(e){
+    document.getElementById("history").textContent="履歴の読み込みに失敗しました。";
+  }
+  FLOW = buildFlow();
+  render();
+})();
+</script>
+</body>
+</html>
