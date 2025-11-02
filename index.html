@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>修理受付コンサルナビ（新潟エリア版）</title>
+<style>
+body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; margin: 0; padding: 20px; background: #f9fafb; }
+h1 { text-align: center; color: #1e3a8a; margin-bottom: 20px; }
+button { display: inline-block; margin: 6px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; }
+button:hover { background: #1e40af; }
+.result { border-left: 6px solid; margin: 15px 0; padding: 15px; border-radius: 6px; }
+.result.ok { border-left-color: #16a34a; background: #e8f5e9; }
+.result.ng { border-left-color: #ef4444; background: #fdecea; }
+.result.warn { border-left-color: #f59e0b; background: #fff8e1; }
+.result h3 { margin: 0 0 5px; font-size: 17px; }
+#content { max-width: 850px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+</style>
+</head>
+<body>
+<h1>修理受付コンサルナビ（新潟エリア版）</h1>
+<div id="content">
+<p>以下からメーカーを選択してください：</p>
+<div id="menu"></div>
+</div>
+<script>
+const DATA = {
+  groups: {
+    domestic: ["NEC", "Fujitsu", "Dynabook", "VAIO", "Mouse Computer"],
+    overseas: ["ASUS", "Dell", "Lenovo", "MSI"],
+    surface: ["Surface"],
+    apple: ["Apple"]
+  },
+  text: {
+    domestic: { q: "メーカー保証期間内ですか？", ok: "🟢 店舗で修理受付可能", ng: "🔴 店頭受付不可" },
+    overseas: { q: "メーカー保証期間内ですか？", ok: "🟢 店舗で修理受付可能", ng: "🟡 注意喚起あり" },
+    surface: { q: "Surface製品は店頭修理できません。", ng: "🔴 Microsoftへ直接ご案内ください。" },
+    apple: { q: "Apple製品は店頭修理できません。", ng: "🔴 Appleへ直接ご案内ください。" }
+  }
+};
+
+function clearContent() {
+  document.getElementById('content').innerHTML = "";
+}
+
+function addResult(kind, title, details) {
+  const d = document.createElement('div');
+  d.className = 'result ' + (kind || 'info');
+
+  // 絵文字の自動付与
+  let emoji = '';
+  if (kind === 'ok') emoji = '🟢 ';
+  else if (kind === 'ng') emoji = '🔴 ';
+  else if (kind === 'warn') emoji = '🟡 ';
+
+  const h = document.createElement('h3');
+  h.textContent = emoji + (title || '');
+  d.appendChild(h);
+
+  if (details) {
+    const p = document.createElement('p');
+    p.textContent = details;
+    d.appendChild(p);
+  }
+  document.getElementById('content').appendChild(d);
+}
+
+function showMakerOptions(group) {
+  clearContent();
+  const c = document.getElementById('content');
+  c.innerHTML = `<h2>${group}メーカーを選択</h2>`;
+  DATA.groups[group].forEach(m => {
+    const b = document.createElement('button');
+    b.textContent = m;
+    b.onclick = () => askWarranty(group, m);
+    c.appendChild(b);
+  });
+}
+
+function askWarranty(group, maker) {
+  clearContent();
+  const c = document.getElementById('content');
+  const q = document.createElement('h2');
+  q.textContent = `${maker} - ${DATA.text[group].q}`;
+  c.appendChild(q);
+  ["はい", "いいえ"].forEach(ans => {
+    const b = document.createElement('button');
+    b.textContent = ans;
+    b.onclick = () => showResult(group, ans);
+    c.appendChild(b);
+  });
+}
+
+function showResult(group, ans) {
+  clearContent();
+  if (group === 'domestic') {
+    if (ans === 'はい') addResult('ok', '店舗で修理受付可能', '修理受付を進めてください。');
+    else addResult('warn', '注意喚起あり', '修理可能ですが、条件を確認してください。');
+  } else if (group === 'overseas') {
+    if (ans === 'はい') addResult('ok', '店舗で修理受付可能', '保証内容を確認し受付可能です。');
+    else addResult('warn', '注意喚起あり', '修理受付は可能ですが、費用が高額になる場合があります。');
+  } else if (group === 'surface') {
+    addResult('ng', 'Microsoftへ直接ご案内ください。', 'マイクロソフトサポートセンター（Surface専用）0120-54-2244（平日9〜18時）');
+  } else if (group === 'apple') {
+    addResult('ng', 'Appleへ直接ご案内ください。', 'Appleサービス&サポートライン：0120-277-535');
+  }
+  const back = document.createElement('button');
+  back.textContent = "メーカー選択に戻る";
+  back.onclick = () => showTopMenu();
+  document.getElementById('content').appendChild(back);
+}
+
+function showTopMenu() {
+  clearContent();
+  const c = document.getElementById('content');
+  c.innerHTML = "<h2>メーカー区分を選択</h2>";
+  Object.keys(DATA.groups).forEach(g => {
+    const b = document.createElement('button');
+    b.textContent = g;
+    b.onclick = () => showMakerOptions(g);
+    c.appendChild(b);
+  });
+  const f = document.createElement('button');
+  f.textContent = "💬 意見を送る";
+  f.onclick = () => window.location.href = "https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform";
+  c.appendChild(f);
+}
+
+showTopMenu();
+</script>
+</body>
+</html>
