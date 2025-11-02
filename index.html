@@ -1,0 +1,349 @@
+
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>修理受付コンサルナビ(新潟エリア版)</title>
+  <style>
+    :root{
+      --ok:#e9f7ef;
+      --ng:#fdecea;
+      --warn:#fff7e6;
+      --card:#ffffff;
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --brand:#1e3a8a;
+      --btn:#eef2ff;
+      --btn-ink:#1e3a8a;
+      --radius:14px;
+    }
+    html,body{margin:0;background:#f6f7fb;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic UI","YuGothic","Meiryo",sans-serif;}
+    header{
+      background:linear-gradient(120deg,#0b5bd7,#1e3a8a);
+      color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    header h1{font-size:18px;margin:0;font-weight:700;}
+    header .link-btn a{background:#1642a5;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;display:inline-block}
+    main{max-width:980px;margin:18px auto;padding:0 14px}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(16,24,40,.06);padding:18px;margin:0 0 16px}
+    .row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+    .pill{border:1px solid #e5e7eb;background:var(--btn);color:var(--btn-ink);border-radius:999px;padding:12px 14px;text-align:center;cursor:pointer;font-weight:600}
+    .pill:hover{filter:brightness(0.98)}
+    .nav{display:flex;gap:8px;margin-top:10px}
+    .nav button{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .breadcrumb{font-size:12px;color:var(--muted);margin:2px 0 10px}
+    .result{border-left:6px solid #d1fae5;background:var(--ok)}
+    .result.ng{border-left-color:#fecaca;background:var(--ng)}
+    .result.warn{border-left-color:#fde68a;background:var(--warn)}
+    .result h3{margin:4px 0 10px;font-size:18px}
+    /* 見出しのドット(リスト)は完全に使わない */
+    ul{list-style:none;padding-left:0;margin:0}
+    li{margin:0}
+    .result p{margin:8px 0 0}
+    details{background:#fff;border-radius:12px;padding:8px 12px}
+    summary{cursor:pointer;color:#1f2937;font-weight:700}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>修理受付コンサルナビ(新潟エリア版)</h1>
+    <div class="link-btn"><a id="feedback" href="#" target="_blank" rel="noopener">意見を送る（Googleフォーム）</a></div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="breadcrumb" id="crumbs">進行：メーカー選択</div>
+      <div id="stage"></div>
+      <div class="nav"><button id="backBtn">← 戻る</button><button id="homeBtn">最初から</button></div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary>🕒 更新履歴（タップで開閉）</summary>
+        <div id="changelog" class="muted" style="margin-top:10px"></div>
+      </details>
+    </section>
+  </main>
+
+  <script>
+  const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform";
+  document.getElementById('feedback').href = GOOGLE_FORM_URL;
+
+  const state = { stack: [] };
+  const crumbs = document.getElementById('crumbs');
+  const stage = document.getElementById('stage');
+  const backBtn = document.getElementById('backBtn');
+  const homeBtn = document.getElementById('homeBtn');
+
+  backBtn.onclick = ()=> { if(state.stack.length>1){ state.stack.pop(); render(state.stack.at(-1)); } };
+  homeBtn.onclick = ()=> { state.stack = []; render({type:'home'}); };
+
+  // ---------- data loader ----------
+  let DATA = null;
+  async function load(){
+    try{
+      const resp = await fetch('data.json', {cache:'no-store'});
+      DATA = await resp.json();
+    }catch(e){
+      stage.innerHTML = "<p class='muted'>データの読み込みに失敗しました。</p>";
+      console.error(e);
+    }
+  }
+
+  function renderHome(){
+    crumbs.textContent = "進行：メーカー選択";
+    const makers = [
+      ...(DATA.groups?.domestic || []),
+      ...(DATA.groups?.overseas || []),
+      ...(DATA.groups?.surface || []),
+      ...(DATA.groups?.apple || []),
+    ];
+    const html = [`<div class="row">`,
+      ...makers.map(m=>`<div class="pill" data-maker="${m}">${m}</div>`),
+      `</div>`].join("");
+    stage.innerHTML = html;
+    stage.querySelectorAll('.pill').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const maker = btn.dataset.maker;
+        goNext({type:'maker', maker});
+      });
+    });
+  }
+
+  function setResult(title, details=[], tone='ok'){
+    const cls = tone==='ng'?'result ng':(tone==='warn'?'result warn':'result');
+    const body = [ `<div class="${cls} card">`,
+      `<h3>${title}</h3>`,
+      ...details.map(t=>`<p>${t}</p>`),
+      `</div>`].join("");
+    stage.innerHTML = body;
+  }
+
+  function goNext(node){
+    state.stack.push(node);
+    render(node);
+  }
+
+  function render(node){
+    if(!node || node.type==='home') return renderHome();
+
+    if(node.type==='maker'){
+      crumbs.textContent = `進行：${node.maker}`;
+      // Special routes
+      if(node.maker==='Surface'){
+        const s = DATA.text.surface;
+        return setResult(s.r_title, [
+          ...s.r_details,
+          "マイクロソフトサポートセンター（Surface専用）",
+          "電話番号：0120-54-2244",
+          "受付時間：月〜金 9:00〜18:00（土日祝休み）"
+        ], 'ng');
+      }
+      if(node.maker==='Apple'){
+        crumbs.textContent = `進行：Apple`;
+        renderAppleStart();
+        return;
+      }
+      if(node.maker==='VAIO'){
+        return renderVAIOGate();
+      }
+      // Common domestic / overseas flow
+      const isDomestic = DATA.groups.domestic.includes(node.maker) || node.maker==='VAIO' || node.maker==='Mouse Computer';
+      const isOverseas = DATA.groups.overseas.includes(node.maker);
+      const dom = DATA.text.domestic;
+      const over = DATA.text.overseas;
+      stage.innerHTML = `
+        <div class="row">
+          <div class="pill" data-ans="yes">メーカー保証の期間内ですか？（はい）</div>
+          <div class="pill" data-ans="no">メーカー保証の期間内ですか？（いいえ）</div>
+        </div>
+      `;
+      stage.querySelectorAll('.pill').forEach(b=>b.onclick = ()=>{
+        const ans = b.dataset.ans;
+        if(isDomestic){
+          if(ans==='yes'){
+            setResult(dom.r_warranty_title, [
+              ...dom.r_warranty_details,
+              "メーカー保証書等を添付の上、修理受付をしてください。"
+            ], 'ok');
+          }else{
+            // 保証外 → ノジマ保証ある？
+            stage.innerHTML = `
+              <div class="row">
+                <div class="pill" data-nj="yes">${DATA.text.common.q_hasNojima}（はい）</div>
+                <div class="pill" data-nj="no">${DATA.text.common.q_hasNojima}（いいえ）</div>
+              </div>
+            `;
+            stage.querySelectorAll('.pill').forEach(p=>p.onclick=()=>{
+              const nj = p.dataset.nj;
+              if(nj==='yes'){
+                setResult(dom.r_nojima_ok_title, dom.r_nojima_ok_details, 'ok');
+              }else{
+                const t = dom.r_prepay_details.concat([
+                  "修理キャンセル時、メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額5,500円へ修正OK。",
+                  "BYOD→業務メニュー→ガイドライン【文章管理】→第07章 修理業務→「修理受付のよくある質問」→「前受金に関すること 」参照"
+                ]);
+                setResult(dom.r_prepay_title, t, 'warn');
+              }
+            });
+          }
+        }else if(isOverseas){
+          if(ans==='yes'){
+            // 海外：保証内 → ノジマ保証？
+            stage.innerHTML = `
+              <div class="row">
+                <div class="pill" data-nj="yes">${DATA.text.common.q_hasNojima}（はい）</div>
+                <div class="pill" data-nj="no">${DATA.text.common.q_hasNojima}（いいえ）</div>
+              </div>
+            `;
+            stage.querySelectorAll('.pill').forEach(p=>p.onclick=()=>{
+              const nj = p.dataset.nj;
+              if(nj==='yes'){
+                const d = over.r_store_ok_details.concat(["症状未再現やお客様都合の修理中止時は見積り代がかかる場合があります。"]);
+                setResult(over.r_store_ok_title, d, 'ok');
+              }else{
+                setResult(over.r_warn_title, over.r_warn_details, 'warn');
+              }
+            });
+          }else{
+            // 海外：保証外
+            setResult(over.r_warn_title, over.r_warn_details, 'warn');
+          }
+        }
+      });
+      return;
+    }
+  }
+
+  // ---------- Apple flow ----------
+  function renderAppleStart(){
+    const a = DATA.text.apple;
+    stage.innerHTML = `
+      <div class="row">
+        <div class="pill" data-a="yes">メーカー保証の期間内ですか？（はい）</div>
+        <div class="pill" data-a="no">メーカー保証の期間内ですか？（いいえ）</div>
+      </div>
+    `;
+    stage.querySelectorAll('.pill').forEach(b=>b.onclick=()=>{
+      const v = b.dataset.a;
+      if(v==='yes'){
+        const body = a.r_direct_details.concat(["Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。"]);
+        setResult(a.r_direct_title, body, 'ng');
+      }else{
+        // ノジマ保証区分
+        stage.innerHTML = `
+          <div class="row">
+            <div class="pill" data-g="ult">${a.l_ultimate}</div>
+            <div class="pill" data-g="pp">${a.l_premium_plus}</div>
+            <div class="pill" data-g="none">${a.l_no_contract}</div>
+          </div>
+        `;
+        stage.querySelectorAll('.pill').forEach(p=>p.onclick=()=>{
+          const g = p.dataset.g;
+          if(g==='ult'){
+            setResult(a.r_ultimate_title, a.r_ultimate_details, 'ok');
+          }else if(g==='pp'){
+            stage.innerHTML = `
+              <div class="row">
+                <div class="pill" data-d="after">${a.q_after_date}（はい）</div>
+                <div class="pill" data-d="before">${a.q_after_date}（いいえ）</div>
+              </div>`;
+            stage.querySelectorAll('.pill').forEach(x=>x.onclick=()=>{
+              const d = x.dataset.d;
+              if(d==='after'){
+                const det = [
+                  "Apple用の製品修理申込書を記載の上、修理受付を行ってください。",
+                  "ポイントバックでの対応になります。",
+                  "自然故障・物損の場合でフローが変わるので、詳しくはMD等への確認を行ってください。",
+                  "※ Apple製品修理申込書はデスクネッツからダウンロード出来ます"
+                ];
+                setResult(a.r_uchi_title, det, 'warn');
+              }else{
+                const det = [
+                  "通常通り修理受付をしてください。",
+                  "提携修理先ウチダエスコでの修理対応になります。",
+                  "Apple用製品修理申込書を記載の上、修理受付を行ってください。",
+                  "※ Apple製品修理申込書はデスクネッツからダウンロード出来ます"
+                ];
+                setResult(a.r_pre_title, det, 'ok');
+              }
+            });
+          }else{
+            const body = a.r_direct2_details.concat(["Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。"]);
+            setResult(a.r_direct2_title, body, 'ng');
+          }
+        });
+      }
+    });
+  }
+
+  // ---------- VAIO extra flow ----------
+  function renderVAIOGate(){
+    const gate = `
+      <div class="card">
+        <div class="muted" style="margin-bottom:6px">時期目安・製造元</div>
+        <div class="muted">〜2014年6月頃まで：ソニー株式会社</div>
+        <div class="muted">2014年7月以降：VAIO株式会社（長野県安曇野市）</div>
+      </div>
+      <div class="row">
+        <div class="pill" data-v="sony">Sony株式会社が販売しているVAIOです</div>
+        <div class="pill" data-v="vaio">VAIO株式会社が販売しているVAIOです</div>
+      </div>`;
+    stage.innerHTML = gate;
+    stage.querySelectorAll('.pill').forEach(p=>p.onclick=()=>{
+      const v = p.dataset.v;
+      if(v==='sony'){
+        setResult("受付終了（Sony製VAIO）", [
+          "Sony株式会社が販売しているVAIO製品の修理受付は終了している可能性が高いですが、下記にて問い合わせ可能です。",
+          "VAIOカスタマーリンク修理相談窓口：0120-60-5599（フリーダイヤル）",
+          "受付時間：月～金 9:00～18:00（祝日・年末年始除く）"
+        ], 'ng');
+      }else{
+        // 当社購入？
+        stage.innerHTML = `
+          <div class="row">
+            <div class="pill" data-b="yes">当社で購入しています（はい）</div>
+            <div class="pill" data-b="no">当社で購入していません（いいえ）</div>
+          </div>`;
+        stage.querySelectorAll('.pill').forEach(x=>x.onclick=()=>{
+          const b = x.dataset.b;
+          if(b==='yes'){
+            setResult("修理受付可能（当社購入：VAIO株式会社製）", [
+              "修理受付を行ってください。",
+              "修理依頼先:ノジマ修理センター(修理センター経由でVAIOに修理依頼)",
+              "保守期間:発売日から約5年(目安)"
+            ], 'ok');
+          }else{
+            setResult("修理受付可能（VAIO株式会社製）", [
+              "修理受付は可能ですが、お客様がメーカーと直接やり取りをするよりも高額になる可能性が高い旨をご説明ください。"
+            ], 'warn');
+          }
+        });
+      }
+    });
+  }
+
+  async function loadChangeLog(){
+    try{
+      const r = await fetch('update_log.json', {cache:'no-store'});
+      const arr = await r.json();
+      const el = document.getElementById('changelog');
+      if(!Array.isArray(arr) || arr.length===0){ el.textContent = "履歴はまだありません。"; return; }
+      el.innerHTML = arr.map(x=>`<div style="padding:8px 0;border-bottom:1px dashed #eee">
+        <div><strong>${x.date}</strong>｜${x.store}｜${x.person}</div>
+        <div>${x.note}</div>
+      </div>`).join("");
+    }catch(e){
+      document.getElementById('changelog').textContent = "履歴の読み込みに失敗しました。";
+    }
+  }
+
+  (async ()=>{
+    await load();
+    render({type:'home'});
+    loadChangeLog();
+  })();
+  </script>
+</body>
+</html>
