@@ -1,0 +1,22 @@
+{
+  "groups": {
+    "domestic": [
+      "NEC",
+      "Fujitsu",
+      "Dynabook",
+      "VAIO",
+      "Mouse Computer"
+    ],
+    "overseas": [
+      "ASUS",
+      "Dell",
+      "Lenovo",
+      "MSI"
+    ]
+  },
+  "text": {
+    "common": {
+      "q_hasNojima": "ノジマの保証に入っていますか？"
+    }
+  }
+}
