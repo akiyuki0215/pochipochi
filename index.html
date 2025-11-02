@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>修理受付コンサルナビ（新潟エリア版）</title>
+<style>
+  :root{
+    --c-bg:#f6f8fb;
+    --c-card:#ffffff;
+    --c-accent:#1a56db;
+    --c-text:#0f172a;
+    --c-muted:#64748b;
+    --c-green:#e7f6ec;
+    --c-yellow:#fff7e6;
+    --c-red:#ffecec;
+    --radius:12px;
+  }
+  html,body{margin:0;padding:0;background:var(--c-bg);color:var(--c-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
+  header{background:#0b2a6b;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
+  header h1{margin:0;font-size:20px;letter-spacing:.04em}
+  header .right a{display:inline-flex;gap:8px;align-items:center;background:#2155d6;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:600}
+  main{max-width:960px;margin:16px auto;padding:0 12px}
+  .card{background:var(--c-card);border-radius:var(--radius);box-shadow:0 6px 20px rgba(15,23,42,.06);padding:16px;margin-bottom:16px}
+  .h2{font-size:20px;font-weight:800;margin:4px 0 12px}
+  .btn{background:var(--c-accent);color:#fff;border:0;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .btn.secondary{background:#e8eefc;color:#1a56db}
+  .grid{display:flex;flex-wrap:wrap;gap:12px}
+  .pill{background:#e8eefc;border:1px solid #d6e3ff;color:#1a56db;border-radius:999px;padding:10px 16px;font-weight:700;cursor:pointer}
+  .muted{color:var(--c-muted);font-size:14px}
+  .result{border-radius:12px;padding:14px 16px;margin:14px 0;display:flex;gap:10px;align-items:flex-start}
+  .result.green{background:var(--c-green)}
+  .result.yellow{background:var(--c-yellow)}
+  .result.red{background:var(--c-red)}
+  .sig{font-size:20px;line-height:1.1;margin-top:2px}
+  .title{font-weight:900;margin:0 0 4px}
+  .backline{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .backbtn{background:#eef2ff;border:1px solid #c7d2fe;color:#1d4ed8;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer}
+  .hidden{display:none}
+  details.ac{background:var(--c-card);border-radius:var(--radius);box-shadow:0 6px 20px rgba(15,23,42,.06);padding:8px}
+  details.ac summary{list-style:none;cursor:pointer;padding:10px 10px;border-radius:10px;font-weight:800}
+  details.ac[open] summary{background:#f2f6ff}
+  table{border-collapse:collapse;width:100%}
+  td,th{border-bottom:1px solid #e5e7eb;padding:10px;text-align:left}
+</style>
+</head>
+<body>
+<header>
+  <h1>修理受付コンサルナビ（新潟エリア版）</h1>
+  <div class="right">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform" target="_blank" rel="noopener">💬 意見を送る</a>
+  </div>
+</header>
+<main>
+  <div id="stage" class="card"></div>
+
+  <details class="ac">
+    <summary>🕒 更新履歴（タップで開閉）</summary>
+    <div id="history" style="padding:4px 10px 14px"></div>
+  </details>
+</main>
+
+<script>
+const S = document.getElementById('stage');
+const H = document.getElementById('history');
+
+let DATA = null;
+let UPDATES = null;
+const navStack = []; // 画面遷移の履歴
+
+async function loadJSON(url, fallback){
+  try{
+    const res = await fetch(url, {cache:'no-store'});
+    if(!res.ok) throw new Error(res.status);
+    return await res.json();
+  }catch(e){
+    return fallback ?? null;
+  }
+}
+
+function topView(){
+  navStack.length = 0; // 履歴リセット
+  S.innerHTML = `
+    <div class="h2">メーカー区分を選択</div>
+    <div class="grid" style="margin-top:8px">
+      <button class="pill" data-g="domestic">domestic</button>
+      <button class="pill" data-g="overseas">overseas</button>
+      <button class="pill" data-g="surface">surface</button>
+      <button class="pill" data-g="apple">apple</button>
+    </div>
+  `;
+  S.querySelectorAll('.pill').forEach(b=>b.addEventListener('click',()=>{
+    const g = b.dataset.g;
+    if(g==='surface'){ return surfaceImmediate(); }
+    showMakers(g);
+  }));
+}
+
+function renderBackLine(){
+  const line = document.createElement('div');
+  line.className = 'backline';
+  const back = document.createElement('button');
+  back.className = 'backbtn';
+  back.textContent = '← 1つ前に戻る';
+  back.onclick = ()=>{
+    if(navStack.length){
+      const prev = navStack.pop();
+      prev();
+    }else{
+      topView();
+    }
+  };
+  line.appendChild(back);
+  return line;
+}
+
+function showMakers(groupKey){
+  const makers = DATA.groups[groupKey] || [];
+  const titleMap = {domestic:'国内メーカー', overseas:'海外メーカー', surface:'Surface', apple:'Apple'};
+  const backTo = ()=>topView();
+  navStack.push(backTo);
+
+  S.innerHTML = '';
+  S.appendChild(renderBackLine());
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.innerHTML = `<div class="h2">${titleMap[groupKey]} 一覧</div>`;
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  makers.forEach(name=>{
+    const btn = document.createElement('button');
+    btn.className = 'pill';
+    btn.textContent = name;
+    btn.onclick = ()=>{
+      showFirstQuestion(groupKey, name);
+    };
+    grid.appendChild(btn);
+  });
+  wrap.appendChild(grid);
+  S.appendChild(wrap);
+}
+
+function signalCard(kind, title, lines){
+  const map = {
+    ok:{cls:'green', icon:'🟢'},
+    warn:{cls:'yellow', icon:'🟡'},
+    ng:{cls:'red', icon:'🔴'}
+  };
+  const info = map[kind] || map.warn;
+  const div = document.createElement('div');
+  div.className = `result ${info.cls}`;
+  div.innerHTML = `
+    <div class="sig">${info.icon}</div>
+    <div>
+      <div class="title">${title}</div>
+      <div class="muted">${(lines||[]).map(x=>escapeHtml(x)).join('<br>')}</div>
+    </div>`;
+  return div;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[m])); }
+
+function showFirstQuestion(groupKey, makerName){
+  // Surfaceはここに来ない（surfaceImmediateで処理）
+  const backTo = ()=>showMakers(groupKey);
+  navStack.push(backTo);
+
+  S.innerHTML = '';
+  S.appendChild(renderBackLine());
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  const qLabel = (groupKey==='apple' ? DATA.text.apple.q_hasWarranty
+                                     : DATA.text[groupKey]?.q_hasWarranty || 'メーカー保証の期間内ですか？');
+  card.innerHTML = `
+    <div class="h2">${makerName} - ${escapeHtml(qLabel)}</div>
+    <div class="grid" style="margin-top:6px">
+      <button class="btn" id="yesBtn">はい</button>
+      <button class="btn secondary" id="noBtn">いいえ</button>
+      <button class="btn secondary" id="backMakers">戻る（メーカー一覧）</button>
+    </div>
+    <div id="resultBox"></div>
+  `;
+  S.appendChild(card);
+
+  document.getElementById('backMakers').onclick = ()=>{
+    navStack.pop(); // 現在の画面を履歴から削除
+    showMakers(groupKey);
+  };
+
+  const resultBox = card.querySelector('#resultBox');
+
+  // apple だけ分岐が特殊。その他は共通
+  const onYes = ()=>{
+    resultBox.innerHTML='';
+    if(groupKey==='apple'){
+      // Apple: 保証あり → 直接案内
+      resultBox.appendChild( signalCard('ng', DATA.text.apple.r_direct_title, DATA.text.apple.r_direct_details.concat(["Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。"])) );
+      // 次のノジマ保証分岐
+      const next = document.createElement('div');
+      next.style.marginTop = '8px';
+      next.innerHTML = `
+        <div class="h2" style="font-size:16px">ノジマ保証のご加入状況を選択してください</div>
+        <div class="grid">
+          <button class="pill" id="aUlt">${escapeHtml(DATA.text.apple.l_ultimate)}</button>
+          <button class="pill" id="aPre">${escapeHtml(DATA.text.apple.l_premium_plus)}</button>
+          <button class="pill" id="aNone">${escapeHtml(DATA.text.apple.l_no_contract)}</button>
+        </div>`;
+      resultBox.appendChild(next);
+      next.querySelector('#aUlt').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('ok', DATA.text.apple.r_ultimate_title, DATA.text.apple.r_ultimate_details) );
+      };
+      next.querySelector('#aPre').onclick = ()=>{
+        resultBox.innerHTML='';
+        // 2023/6/1 以降か？
+        const ask = document.createElement('div');
+        ask.innerHTML = `
+          <div class="h2" style="font-size:16px">${escapeHtml(DATA.text.apple.q_after_date)}</div>
+          <div class="grid" style="margin-top:6px">
+            <button class="btn" id="afterYes">はい</button>
+            <button class="btn secondary" id="afterNo">いいえ</button>
+          </div>`;
+        resultBox.appendChild(ask);
+        ask.querySelector('#afterYes').onclick = ()=>{
+          resultBox.innerHTML='';
+          resultBox.appendChild( signalCard('warn', DATA.text.apple.r_uchi_title, DATA.text.apple.r_uchi_details.concat(["Apple用の製品修理申込書を記載の上、修理受付を行ってください。ポイントバックでの対応になります。自然故障・物損の場合でフローが変わるので、詳しくはMD等への確認を行ってください。"])) );
+        };
+        ask.querySelector('#afterNo').onclick = ()=>{
+          resultBox.innerHTML='';
+          resultBox.appendChild( signalCard('ok', DATA.text.apple.r_pre_title, DATA.text.apple.r_pre_details) );
+          // 文末追記（要望）
+          const extra = document.createElement('div');
+          extra.className='muted';
+          extra.style.marginTop='6px';
+          extra.textContent = '※ Apple製品修理申込書はデスクネッツからダウンロード出来ます';
+          resultBox.appendChild(extra);
+        };
+      };
+      next.querySelector('#aNone').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('ng', DATA.text.apple.r_direct2_title, DATA.text.apple.r_direct2_details.concat(["Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。"])) );
+      };
+      return;
+    }
+
+    // domestic / overseas （保証あり）
+    if(groupKey==='domestic'){
+      resultBox.appendChild( signalCard('ok', DATA.text.domestic.r_warranty_title, DATA.text.domestic.r_warranty_details) );
+    }else if(groupKey==='overseas'){
+      // 保証あり → 注意喚起＆ノジマ保証確認
+      resultBox.appendChild( signalCard('warn', DATA.text.overseas.r_warn_title, DATA.text.overseas.r_warn_details.concat(["症状未再現やお客様都合の修理中止時は見積り代がかかる場合があります。"])) );
+      // ノジマ保証？
+      const n = document.createElement('div');
+      n.innerHTML = `
+        <div class="h2" style="font-size:16px">${escapeHtml(DATA.text.common.q_hasNojima)}</div>
+        <div class="grid">
+          <button class="btn" id="njYes">はい</button>
+          <button class="btn secondary" id="njNo">いいえ</button>
+        </div>`;
+      resultBox.appendChild(n);
+      n.querySelector('#njYes').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('ok', DATA.text.overseas.r_store_ok_title, DATA.text.overseas.r_store_ok_details) );
+      };
+      n.querySelector('#njNo').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('warn', DATA.text.overseas.r_warn_title, DATA.text.overseas.r_warn_details) );
+      };
+    }
+  };
+
+  const onNo = ()=>{
+    resultBox.innerHTML='';
+    if(groupKey==='domestic'){
+      // ノジマ保証？
+      const n = document.createElement('div');
+      n.innerHTML = `
+        <div class="h2" style="font-size:16px">${escapeHtml(DATA.text.common.q_hasNojima)}</div>
+        <div class="grid">
+          <button class="btn" id="njYes">はい</button>
+          <button class="btn secondary" id="njNo">いいえ</button>
+        </div>`;
+      resultBox.appendChild(n);
+      n.querySelector('#njYes').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('ok', DATA.text.domestic.r_nojima_ok_title, DATA.text.domestic.r_nojima_ok_details) );
+      };
+      n.querySelector('#njNo').onclick = ()=>{
+        resultBox.innerHTML='';
+        resultBox.appendChild( signalCard('warn', DATA.text.domestic.r_prepay_title, DATA.text.domestic.r_prepay_details.concat(["修理キャンセル時、メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額5,500円へ修正OK。"])) );
+      };
+    }else if(groupKey==='overseas'){
+      resultBox.appendChild( signalCard('warn', DATA.text.overseas.r_warn_title, [
+        "ノジマでの修理受付が可能です。",
+        "ただし万が一有償修理の場合、お客様がメーカーに直接依頼するより高額になる場合があります。ご説明の上、判断を尊重してください。"
+      ]) );
+    }else if(groupKey==='apple'){
+      // 保証なし → 直接案内
+      resultBox.appendChild( signalCard('ng', DATA.text.apple.r_direct2_title, DATA.text.apple.r_direct2_details.concat(["Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。"])) );
+    }
+  };
+
+  document.getElementById('yesBtn').onclick = onYes;
+  document.getElementById('noBtn').onclick  = onNo;
+}
+
+function surfaceImmediate(){
+  const groupKey='surface';
+  const backTo = ()=>topView();
+  navStack.push(backTo);
+
+  S.innerHTML='';
+  S.appendChild(renderBackLine());
+
+  const card = document.createElement('div');
+  card.className='card';
+  card.innerHTML = `<div class="h2">Microsoft Surface</div><div id="resultBox"></div>`;
+  S.appendChild(card);
+  const resultBox = card.querySelector('#resultBox');
+  // 直接結果（はい/いいえを出さない）
+  const t = DATA.text.surface.r_title;
+  const d = DATA.text.surface.r_details.concat(["マイクロソフトサポートセンター（Surface専用） 電話番号：0120-54-2244（受付：月〜金 9:00〜18:00）"]);
+  resultBox.appendChild( signalCard('ng', t, d) );
+}
+
+function renderHistory(){
+  if(!Array.isArray(UPDATES)) return;
+  const rows = UPDATES.map(u=>{
+    return `<tr><td>${escapeHtml(u.date||'')}</td><td>${escapeHtml(u.store||'')}</td><td>${escapeHtml(u.person||'')}</td><td>${escapeHtml(u.note||'')}</td></tr>`;
+  }).join('');
+  H.innerHTML = `
+    <table>
+      <thead><tr><th>日付</th><th>店舗</th><th>担当</th><th>更新内容</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function boot(){
+  DATA = await loadJSON('data.json', null);
+  UPDATES = await loadJSON('update_log.json', []);
+  renderHistory();
+  topView();
+}
+
+boot();
+</script>
+</body>
+</html>
