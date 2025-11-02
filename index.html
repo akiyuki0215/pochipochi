@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修理受付コンサルナビ（新潟エリア版）</title>
+<style>
+  :root{
+    --blue:#1e3a8a;
+    --btn:#2563eb;
+    --btn-hover:#1e40af;
+    --ok:#e8f5e9;
+    --warn:#fff8e1;
+    --ng:#fdecea;
+  }
+  body{margin:0;background:#f6f9fc;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,"Noto Sans JP",sans-serif;color:#111;}
+  header{background:var(--blue);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:14px 18px}
+  header h1{font-size:20px;margin:0}
+  header .send{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer}
+  header .send:hover{background:#1e40af}
+  main{max-width:980px;margin:26px auto;padding:0 16px}
+  .card{background:#fff;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.07);padding:20px 22px;margin-bottom:18px}
+  h2{margin:0 0 8px;color:var(--blue);font-size:20px}
+  .group-title{font-weight:700;color:#374151;margin:14px 6px 10px}
+  .btn{background:var(--btn);color:#fff;border:none;border-radius:10px;padding:10px 14px;margin:6px;cursor:pointer;min-width:120px}
+  .btn:hover{background:var(--btn-hover)}
+  .row{display:flex;flex-wrap:wrap}
+  .result{border-left:6px solid;border-radius:10px;padding:16px;margin-top:16px}
+  .ok{background:var(--ok);border-left-color:#16a34a}
+  .warn{background:var(--warn);border-left-color:#f59e0b}
+  .ng{background:var(--ng);border-left-color:#ef4444}
+  .muted{color:#6b7280;font-size:13px}
+  .back{background:#6b7280}
+  .back:hover{background:#4b5563}
+  .answers{margin:8px 0 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>修理受付コンサルナビ（新潟エリア版）</h1>
+  <button class="send" onclick="window.location.href='https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform'">💬 意見を送る</button>
+</header>
+
+<main id="app">
+  <!-- 初期画面は“メーカーを直接”選べるレイアウト -->
+  <div class="card" id="top">
+    <h2>メーカーを選択</h2>
+    <div class="group-title">国内メーカー</div>
+    <div class="row" id="g-domestic"></div>
+    <div class="group-title">海外メーカー</div>
+    <div class="row" id="g-overseas"></div>
+    <div class="group-title">Surface</div>
+    <div class="row" id="g-surface"></div>
+    <div class="group-title">Apple</div>
+    <div class="row" id="g-apple"></div>
+  </div>
+
+  <div class="card" id="flow" style="display:none"></div>
+</main>
+
+<script>
+const DATA = {
+  groups: {
+    domestic: ["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
+    overseas: ["ASUS","Dell","Lenovo","MSI"],
+    surface: ["Surface"],
+    apple: ["Apple"]
+  }
+};
+
+function el(tag, attrs={}, html=""){
+  const e=document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+  if(html!==undefined) e.innerHTML=html;
+  return e;
+}
+
+function mountTop(){
+  document.getElementById('top').style.display='block';
+  document.getElementById('flow').style.display='none';
+  document.getElementById('flow').innerHTML='';
+}
+
+function toFlow(title, innerBuilder){
+  const flow = document.getElementById('flow');
+  flow.innerHTML = '';
+  const h2 = el('h2',{}, title);
+  flow.appendChild(h2);
+
+  // 回答ボタンの行
+  const answers = el('div',{class:'answers', id:'answers'});
+  flow.appendChild(answers);
+
+  // 結果エリアを専用DIVに（←ここがポイント：毎回クリア）
+  const resultBox = el('div',{id:'resultBox'});
+  flow.appendChild(resultBox);
+
+  // ビルダー呼び出し
+  innerBuilder(answers, resultBox);
+
+  // 戻る
+  const back = el('button',{class:'btn back', id:'backBtn'},"戻る（メーカー一覧）");
+  back.onclick = mountTop;
+  flow.appendChild(back);
+
+  document.getElementById('top').style.display='none';
+  flow.style.display='block';
+}
+
+function askWarranty(group, maker){
+  toFlow(`${maker} - メーカー保証期間内ですか？`, (answers, resultBox)=>{
+    ["はい","いいえ"].forEach(ans=>{
+      const b = el('button',{class:'btn'},ans);
+      b.onclick = ()=>showResult(group, maker, ans, resultBox);
+      answers.appendChild(b);
+    });
+  });
+}
+
+function showResult(group, maker, ans, resultBox){
+  // 直前結果を必ずクリア（多重表示防止）
+  resultBox.innerHTML = '';
+
+  const add = (cls, title, text)=>{
+    const emoji = cls==='ok'?'🟢':cls==='ng'?'🔴':'🟡';
+    const div = el('div',{class:`result ${cls}`}, `<h3 style="margin:0 0 6px">${emoji} ${title}</h3><div>${text}</div>`);
+    resultBox.appendChild(div);
+  };
+
+  if(group==='domestic'){
+    if(ans==='はい'){
+      add('ok','修理受付 可能', 'メーカー保証書等を添付の上、修理受付をしてください。');
+    }else{
+      add('warn','注意喚起', '修理キャンセル時、メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額5,500円へ修正OK。');
+    }
+  }else if(group==='overseas'){
+    if(ans==='はい'){
+      add('ok','修理受付 可能', '保証内容を確認の上、修理受付が可能です。症状未再現やお客様都合の修理中止時は見積もり代がかかる場合があります。');
+    }else{
+      add('warn','修理受付 可能（注意喚起）', 'ノジマでの修理受付が可能です。ただし有償時はメーカーへ直接依頼するより高額となる場合があります。ご説明の上、判断を尊重してください。');
+    }
+  }else if(group==='surface'){
+    add('ng','店舗受付不可（Microsoftへ直接）',
+        'マイクロソフトサポートセンター（Surface専用）<br>電話番号：0120-54-2244<br>受付時間：月〜金 9:00〜18:00（祝日除く）');
+  }else if(group==='apple'){
+    add('ng','店舗受付不可（Appleへ直接）',
+        'Appleサービス&サポートライン　0120-277-535 へのご連絡をお客様にお伝えください。');
+  }
+}
+
+function buildTop(){
+  const addButtons = (id, groupKey)=>{
+    const row = document.getElementById(id);
+    row.innerHTML='';
+    DATA.groups[groupKey].forEach(m=>{
+      const b = el('button',{class:'btn'},m);
+      b.onclick = ()=>askWarranty(groupKey, m);
+      row.appendChild(b);
+    });
+  };
+  addButtons('g-domestic','domestic');
+  addButtons('g-overseas','overseas');
+  addButtons('g-surface','surface');
+  addButtons('g-apple','apple');
+}
+
+buildTop();
+</script>
+</body>
+</html>
