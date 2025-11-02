@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>修理受付コンサルナビ(新潟エリア版)</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      background: #f5f7fb;
+      color: #222;
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(90deg, #0f4cbd, #0b6ed0);
+      color: #fff; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+    .btn {
+      display:inline-block; border: 0; background: #0b6ed0; color: #fff;
+      padding: 10px 14px; border-radius: 999px; font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .btn.secondary { background:#e9eef9; color:#0b6ed0; }
+    main { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+    .card {
+      background:#fff; border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(16,24,40,.06);
+      margin-bottom: 16px;
+    }
+    .section-title { font-size: 14px; opacity:.7; margin:0 0 8px; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px;
+    }
+    .pill {
+      background:#eef3ff; color:#0b4fc9; border: 1px solid #dfe8ff;
+      padding: 12px 14px; border-radius: 16px; text-align:center; cursor:pointer; font-weight:600;
+    }
+    .pill:hover { filter: brightness(0.97); }
+    .toolbar { display:flex; gap:8px; }
+    .breadcrumbs { font-size: 13px; color:#667085; margin-bottom:12px; }
+    .result { border-radius: 12px; padding: 16px; }
+    .result.success { background: #e9f9ef; border:1px solid #bfe7cd; }
+    .result.warn    { background: #fff7e6; border:1px solid #ffe3a4; }
+    .result.danger  { background: #fdeaea; border:1px solid #f3c0c0; }
+    .result h3 { margin: 0 0 8px; font-size: 18px; }
+    .result ul { margin: 0; padding-left: 0; list-style: none; }
+    .result li { margin: 6px 0; }
+    details.accordion { background:#fff; border-radius: 14px; padding: 8px 14px; }
+    summary { cursor: pointer; font-weight: 700; }
+    .spacer { height: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>修理受付コンサルナビ(新潟エリア版)</h1>
+    <a class="btn" id="opinionBtn" href="https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform" target="_blank" rel="noopener">意見を送る（Googleフォーム）</a>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="breadcrumbs" id="trail">進行：メーカー選択</div>
+      <div id="view"></div>
+      <div class="toolbar">
+        <button class="btn secondary" id="backBtn">← 戻る</button>
+        <button class="btn secondary" id="homeBtn">最初から</button>
+      </div>
+    </div>
+
+    <details class="accordion" id="logAcc">
+      <summary>🕒 更新履歴（タップで開閉）</summary>
+      <div id="logs" class="spacer"></div>
+    </details>
+  </main>
+
+  <script>
+    // --- Fallback JSON (使えない場合の保険) ---
+    const FALLBACK = {
+      groups: {
+        domestic: ["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"],
+        overseas: ["ASUS","Dell","Lenovo","MSI"],
+        surface: ["Surface"],
+        apple: ["Apple"]
+      },
+      text: {
+        common: { q_hasNojima: "ノジマの保証に入っていますか？" },
+        domestic: {
+          q_hasWarranty: "メーカー保証の期間内ですか？",
+          r_warranty_title: "メーカー保証内の受付（注意事項あり）",
+          r_warranty_details: [
+            "メーカー保証内として受付します。",
+            "ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
+            "メーカー保証書等を添付の上、修理受付をしてください。"
+          ],
+          r_nojima_ok_title: "店舗での修理受付：可能（ノジマ保証）",
+          r_nojima_ok_details: [
+            "店舗での修理受付は可能です。",
+            "保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。",
+            "前受け金は必要ありません。"
+          ],
+          r_prepay_title: "修理受付は可能（前受け金あり）",
+          r_prepay_details: [
+            "前受け金5,500円（現金のみ）をいただいて修理受付可能です。",
+            "修理キャンセル時、メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額5,500円へ修正OK。",
+            "BYOD→業務メニュー→ガイドライン【文章管理】→第07章 修理業務→「修理受付のよくある質問」→「前受金に関すること 」参照"
+          ]
+        },
+        overseas: {
+          q_hasWarranty: "メーカー保証の期間内ですか？",
+          r_warn_title: "修理受付可能（注意喚起）",
+          r_warn_details: [
+            "ノジマでの修理受付は可能です。",
+            "ただし、メーカーへ直接依頼するより修理金額が高額になる場合があります。",
+            "お客様にご説明のうえ、ご判断を尊重してください。"
+          ],
+          r_store_ok_title: "店舗での修理受付：対応可能",
+          r_store_ok_details: [
+            "ノジマ保証加入のため、店舗で修理受付が可能です。",
+            "症状未再現やお客様都合の修理中止時は見積り代がかかる場合があります。"
+          ]
+        },
+        surface: {
+          r_title: "店舗修理受付不可（Surface）",
+          r_details: [
+            "当店での修理受付はできません。",
+            "お客様とメーカーで直接やり取りになります。",
+            "マイクロソフトサポートセンター（Surface専用）",
+            "電話番号：0120-54-2244",
+            "受付時間：月〜金 9:00〜18:00（土日祝休み）"
+          ]
+        },
+        apple: {
+          q_hasWarranty: "メーカー保証の期間内ですか？",
+          r_direct_title: "店頭受付不可（Appleへ直接案内）",
+          r_direct_details: [
+            "ノジマ店頭での修理受付はできません。",
+            "Appleとお客様で直接の修理対応をお願いします。",
+            "Appleサービス&サポートライン：0120-277-535"
+          ]
+        }
+      }
+    };
+
+    async function loadJSON(url, fallback) {
+      try {
+        const resp = await fetch(url + "?v=" + Date.now(), {cache: "no-store"});
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        return await resp.json();
+      } catch (e) {
+        console.warn("JSONの読み込みに失敗したためフォールバックを使用します:", e);
+        return fallback;
+      }
+    }
+
+    const state = { stack: [] };
+    let DATA = null;
+
+    const elView = document.getElementById("view");
+    const elTrail = document.getElementById("trail");
+    const elBack = document.getElementById("backBtn");
+    const elHome = document.getElementById("homeBtn");
+
+    elBack.addEventListener("click", () => {
+      if (state.stack.length > 1) {
+        state.stack.pop();
+        const prev = state.stack[state.stack.length - 1];
+        route(prev);
+      }
+    });
+    elHome.addEventListener("click", () => goHome());
+
+    function goHome() {
+      state.stack = [{ route: "home" }];
+      route(state.stack[0]);
+    }
+
+    function push(routeObj) {
+      state.stack.push(routeObj);
+      route(routeObj);
+    }
+
+    function setTrail(arr) {
+      elTrail.textContent = "進行：" + arr.join(" > ");
+    }
+
+    function renderMakers() {
+      const groups = DATA.groups;
+      const wrapper = document.createElement("div");
+      // Heading row is implicit; we place all within one card but with group captions
+      [["国内メーカー", "domestic"], ["海外メーカー", "overseas"], ["Surface", "surface"], ["Apple", "apple"]].forEach(([label, key]) => {
+        const card = document.createElement("div");
+        card.className = "spacer";
+        const groupBox = document.createElement("div");
+        groupBox.className = "grid";
+        const caption = document.createElement("div");
+        caption.className = "section-title";
+        caption.textContent = label;
+        wrapper.appendChild(caption);
+        groups[key].forEach(name => {
+          const b = document.createElement("div");
+          b.className = "pill";
+          b.textContent = name;
+          b.addEventListener("click", () => push({ route: "maker", maker: name, group: key }));
+          groupBox.appendChild(b);
+        });
+        wrapper.appendChild(groupBox);
+        wrapper.appendChild(document.createElement("div")).className = "spacer";
+      });
+      elView.innerHTML = "";
+      elView.appendChild(wrapper);
+      setTrail(["メーカー選択"]);
+    }
+
+    function renderYesNo(question, onYes, onNo) {
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      const yes = document.createElement("div");
+      yes.className = "pill";
+      yes.textContent = question + "（はい）";
+      yes.addEventListener("click", onYes);
+      const no = document.createElement("div");
+      no.className = "pill";
+      no.textContent = question + "（いいえ）";
+      no.addEventListener("click", onNo);
+      elView.innerHTML = "";
+      elView.appendChild(grid);
+      grid.appendChild(yes);
+      grid.appendChild(no);
+    }
+
+    function renderResult(kind, title, details) {
+      const box = document.createElement("div");
+      box.className = "result " + (kind || "warn");
+      const h3 = document.createElement("h3");
+      h3.textContent = title;
+      const ul = document.createElement("ul");
+      details.forEach(t => {
+        const li = document.createElement("li");
+        li.textContent = t;
+        ul.appendChild(li);
+      });
+      box.appendChild(h3);
+      box.appendChild(ul);
+      elView.innerHTML = "";
+      elView.appendChild(box);
+    }
+
+    function route(routeObj) {
+      switch (routeObj.route) {
+        case "home":
+          renderMakers();
+          break;
+        case "maker": {
+          const { maker, group } = routeObj;
+          setTrail(["メーカー選択", maker]);
+          if (group === "surface") {
+            renderResult("danger", DATA.text.surface.r_title, DATA.text.surface.r_details);
+          } else if (group === "apple") {
+            // 簡易版：Appleは基本、直接案内（要件に合わせて拡張可）
+            renderResult("warn", DATA.text.apple.r_direct_title, DATA.text.apple.r_direct_details);
+          } else if (group === "domestic") {
+            const Q = DATA.text.domestic.q_hasWarranty;
+            renderYesNo(Q,
+              () => {
+                setTrail(["メーカー選択", maker, "保証あり"]);
+                renderResult("success", DATA.text.domestic.r_warranty_title, DATA.text.domestic.r_warranty_details);
+              },
+              () => {
+                // ノジマ保証の有無
+                const QQ = DATA.text.common.q_hasNojima;
+                renderYesNo(QQ,
+                  () => {
+                    setTrail(["メーカー選択", maker, "ノジマ保証あり"]);
+                    renderResult("success", DATA.text.domestic.r_nojima_ok_title, DATA.text.domestic.r_nojima_ok_details);
+                  },
+                  () => {
+                    setTrail(["メーカー選択", maker, "ノジマ保証なし"]);
+                    renderResult("warn", DATA.text.domestic.r_prepay_title, DATA.text.domestic.r_prepay_details);
+                  }
+                );
+              }
+            );
+          } else if (group === "overseas") {
+            const Q = DATA.text.overseas.q_hasWarranty;
+            renderYesNo(Q,
+              () => {
+                const QQ = DATA.text.common.q_hasNojima;
+                renderYesNo(QQ,
+                  () => {
+                    setTrail(["メーカー選択", maker, "保証内", "ノジマ保証あり"]);
+                    renderResult("success", DATA.text.overseas.r_store_ok_title, DATA.text.overseas.r_store_ok_details);
+                  },
+                  () => {
+                    setTrail(["メーカー選択", maker, "保証内", "ノジマ保証なし"]);
+                    renderResult("warn", DATA.text.overseas.r_warn_title, DATA.text.overseas.r_warn_details);
+                  }
+                );
+              },
+              () => {
+                setTrail(["メーカー選択", maker, "保証なし"]);
+                renderResult("warn", DATA.text.overseas.r_warn_title, DATA.text.overseas.r_warn_details);
+              }
+            );
+          }
+          break;
+        }
+      }
+    }
+
+    async function init() {
+      DATA = await loadJSON("./data.json", FALLBACK);
+      // 更新履歴
+      const logsWrap = document.getElementById("logs");
+      try {
+        const log = await loadJSON("./update_log.json", { items: [] });
+        const box = document.createElement("div");
+        box.className = "card";
+        if (!Array.isArray(log.items) || log.items.length === 0) {
+          box.textContent = "履歴データはありません。";
+        } else {
+          const ul = document.createElement("ul");
+          ul.style.listStyle = "none";
+          ul.style.padding = "0";
+          log.items.forEach(it => {
+            const li = document.createElement("li");
+            li.style.padding = "8px 0";
+            li.style.borderBottom = "1px dashed #e5e7eb";
+            li.textContent = `${it.date}｜${it.store}｜${it.person}｜${it.note}`;
+            ul.appendChild(li);
+          });
+          box.appendChild(ul);
+        }
+        logsWrap.innerHTML = "";
+        logsWrap.appendChild(box);
+      } catch (e) {
+        logsWrap.textContent = "履歴の読み込みに失敗しました。";
+      }
+      goHome();
+    }
+
+    init();
+  </script>
+</body>
+</html>
