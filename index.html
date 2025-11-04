@@ -6,7 +6,7 @@
 <title>修理受付コンサルナビ（新潟エリア版）</title>
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;margin:0;background:#f6f7fb;color:#111}
-  header{position:sticky;top:0;background:#0b5bd3;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  header{position:sticky;top:0;background:#0b5bd3;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:10}
   header .t{font-weight:700}
   header a{color:#fff;text-decoration:none;background:#ffffff22;padding:8px 12px;border-radius:8px}
   .container{max-width:960px;margin:18px auto;padding:0 14px}
@@ -16,10 +16,16 @@
   .btn{display:inline-block;margin:6px 8px 0 0;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;background:#fff;cursor:pointer}
   .btn:hover{background:#f8fafc}
   .btn.primary{background:#e9f2ff;border-color:#bfd4ff}
-  .result{border:1px solid #e5e7eb;border-left:4px solid #3b82f6;border-radius:12px;padding:12px;background:#fff}
-  .result.ok{border-left-color:#16a34a}.result.warn{border-left-color:#f59e0b}.result.ng{border-left-color:#ef4444}
   .controls{display:flex;gap:10px;margin-top:10px}
   .ghost{background:#fff;border:1px dashed #ced4da}
+
+  /* 結果カード（背景色つき） */
+  .result{border:1px solid #e5e7eb;border-left:4px solid #3b82f6;border-radius:12px;padding:12px;margin-bottom:10px}
+  .result.ok{border-left-color:#16a34a;background:#ecfdf5}   /* 薄緑 */
+  .result.warn{border-left-color:#f59e0b;background:#fffbeb} /* 薄黄 */
+  .result.ng{border-left-color:#ef4444;background:#fef2f2}   /* 薄赤 */
+  .result.info{background:#f8fafc}
+
   details.acc{border:1px solid #e5e7eb;border-radius:12px;background:#fff}
   details.acc summary{padding:12px;cursor:pointer;list-style:none}
   details.acc summary::-webkit-details-marker{display:none}
@@ -30,6 +36,7 @@
   <div class="t">修理受付コンサルナビ（新潟エリア版）</div>
   <a href="https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform" target="_blank" rel="noopener">意見を送る</a>
 </header>
+
 <main class="container">
   <div class="card">
     <div class="path" id="path">進行：メーカー選択</div>
@@ -39,6 +46,7 @@
       <button class="btn primary" id="resetBtn" type="button">最初から</button>
     </div>
   </div>
+
   <details class="acc card" id="historyAcc">
     <summary>🕓 更新履歴（タップで開閉）</summary>
     <div id="logWrap" style="padding:0 12px 12px"></div>
@@ -58,6 +66,24 @@ function push(currentRenderer, nextRenderer){ state.backStack.push({path:[...sta
 function goBack(){ const last=state.backStack.pop(); if(!last){ home(); return;} state.path=last.path; last.render(); setPath(state.path.join(' > ')||'メーカー選択'); showBack(state.backStack.length>0); }
 function getGroupOf(m){ const g=state.data.groups; for(const k in g){ if((g[k]||[]).includes(m)) return k; } return null; }
 
+/* メーカー別 追記事項を挿入する小関数 */
+function appendMakerExtra(group, maker){
+  const t = state.data.text;
+  if(group==='domestic'){
+    if(maker==='Mouse Computer' && t.domestic.mouse){ addResult('info', t.domestic.mouse.r_mouse_title, t.domestic.mouse.r_mouse_details); }
+    if(maker==='NEC' && t.domestic.nec_info_title){ addResult('info', t.domestic.nec_info_title, t.domestic.nec_info_details); }
+    if(maker==='Dynabook' && t.domestic.dynabook_info_title){ addResult('info', t.domestic.dynabook_info_title, t.domestic.dynabook_info_details); }
+    if(maker==='Fujitsu' && t.domestic.fujitsu_info_title){ addResult('info', t.domestic.fujitsu_info_title, t.domestic.fujitsu_info_details); }
+  }else if(group==='overseas'){
+    if(maker==='Dell' && t.overseas.dell_info_title){ addResult('info', t.overseas.dell_info_title, t.overseas.dell_info_details); }
+    if(maker==='Lenovo' && t.overseas.lenovo_info_title){ addResult('info', t.overseas.lenovo_info_title, t.overseas.lenovo_info_details); }
+    if(maker==='MSI' && t.overseas.msi_info_title){ addResult('info', t.overseas.msi_info_title, t.overseas.msi_info_details); }
+  }else if(group==='surface'){
+    /* Surface は data.json 側で案内文にサポート窓口を同梱 */
+  }
+}
+
+/* ---------- 画面群 ---------- */
 function home(){
   state.path=[]; clearContent(); setPath('メーカー選択');
   const g=state.data.groups;
@@ -93,7 +119,7 @@ function viewVaio(maker){
       push(rerender, ()=>{
         state.path.push('VAIO：Sony版');
         clearContent(); setPath(state.path.join(' > '));
-        addResult('ng', t.r_sony_end_title || '受付終了（Sony製VAIO）', asArr(t.r_sony_end_details));
+        addResult('ng', t.r_sony_end_title || '受付可否のご案内（Sony製VAIO）', asArr(t.r_sony_end_details));
       });
     });
 
@@ -136,6 +162,7 @@ function viewDomestic(maker){
         state.path.push('保証：はい');
         clearContent(); setPath(state.path.join(' > '));
         addResult('ok', t.r_warranty_title || 'メーカー保証内の受付（注意事項あり）', asArr(t.r_warranty_details));
+        appendMakerExtra('domestic', maker);  // ← 追記ポイント
       });
     });
     addButton('いいえ', ()=>{
@@ -148,6 +175,7 @@ function viewDomestic(maker){
             state.path.push('ノジマ保証：はい');
             clearContent(); setPath(state.path.join(' > '));
             addResult('ok', t.r_nojima_ok_title || '店舗での修理受付：可能（ノジマ保証）', asArr(t.r_nojima_ok_details));
+            appendMakerExtra('domestic', maker);
           });
         });
         addButton('いいえ', ()=>{
@@ -155,6 +183,7 @@ function viewDomestic(maker){
             state.path.push('ノジマ保証：いいえ');
             clearContent(); setPath(state.path.join(' > '));
             addResult('warn', t.r_prepay_title || '修理受付は可能（前受け金あり）', asArr(t.r_prepay_details));
+            appendMakerExtra('domestic', maker);
           });
         });
       });
@@ -181,6 +210,7 @@ function viewOverseas(maker){
             clearContent(); setPath(state.path.join(' > '));
             const merged = asArr(t.r_store_ok_details).concat(asArr(t.r_warranty_details));
             addResult('ok', t.r_store_ok_title || '店舗での修理受付：対応可能', merged);
+            appendMakerExtra('overseas', maker);
           });
         });
         addButton('いいえ', ()=>{
@@ -188,6 +218,7 @@ function viewOverseas(maker){
             state.path.push('ノジマ保証：いいえ');
             clearContent(); setPath(state.path.join(' > '));
             addResult('warn', t.r_warn_title || '修理受付可能（ご説明のお願い）', asArr(t.r_warn_details));
+            appendMakerExtra('overseas', maker);
           });
         });
       });
@@ -197,6 +228,7 @@ function viewOverseas(maker){
         state.path.push('保証：いいえ');
         clearContent(); setPath(state.path.join(' > '));
         addResult('warn', t.r_warn_title || '修理受付可能（ご説明のお願い）', asArr(t.r_warn_details));
+        appendMakerExtra('overseas', maker);
       });
     });
   };
@@ -269,6 +301,7 @@ function viewApple(maker){
   rerender();
 }
 
+/* --- 更新履歴読み込み（折りたたみオープン時のみ） --- */
 async function loadUpdateLog(){
   const wrap=document.getElementById('logWrap'); wrap.textContent='読み込み中…';
   try{
@@ -285,6 +318,7 @@ async function loadUpdateLog(){
   }catch(e){ wrap.textContent='update_log.json が見つかりません（必要に応じて設置してください）。'; }
 }
 
+/* --- 初期化 --- */
 async function init(){
   document.getElementById('resetBtn').onclick=()=>{ state.backStack=[]; home(); };
   document.getElementById('backBtn').onclick=goBack;
