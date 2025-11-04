@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>修理受付コンサルナビ（新潟エリア版）</title>
+  <style>
+    :root{
+      --bg:#f7f9fc;
+      --panel:#ffffff;
+      --ink:#0b1220;
+      --muted:#6b7280;
+      --brand:#0b6bcb;
+      --brand-ink:#ffffff;
+      --ok:#e9f9ef;
+      --warn:#fff9e6;
+      --ng:#feeeee;
+      --ring: rgba(11,107,203,.25);
+      --chip:#eef2f7;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
+      color:var(--ink);
+      background:var(--bg);
+    }
+    .container{max-width:980px;margin:0 auto;padding:16px}
+    header{
+      background:linear-gradient(90deg,#0b6bcb,#0f2b6a);
+      color:#fff;
+      position:sticky;top:0;z-index:10;
+    }
+    header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
+    .title{font-weight:700;letter-spacing:.03em}
+    .sub{font-size:12px;opacity:.9}
+    .btn{
+      appearance:none;border:0;border-radius:10px;padding:10px 14px;font-weight:600;
+      background:#f1f5f9;color:#0b2b4a;cursor:pointer;transition:.15s;
+      box-shadow:0 1px 0 rgba(0,0,0,.02), inset 0 0 0 1px #e5e7eb;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.08), inset 0 0 0 1px #dbe0e6}
+    .btn.brand{background:var(--brand);color:var(--brand-ink);box-shadow:none}
+    .card{background:var(--panel);border-radius:14px;box-shadow:0 1px 0 rgba(0,0,0,.04),0 10px 30px rgba(2,13,40,.06);padding:14px 16px;margin:14px 0}
+    .heading{font-size:14px;color:var(--muted);margin-bottom:6px}
+    .chip{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border-radius:999px;padding:8px 12px;margin:6px 8px 6px 0;cursor:pointer;border:1px solid #e6ebf2}
+    .chip:focus,.chip:active{outline: none; box-shadow:0 0 0 4px var(--ring)}
+    .section-title{font-size:18px;font-weight:700;margin:10px 0 6px}
+    .result{border-left:6px solid #d1e3ff;padding:10px 12px;border-radius:12px;margin:10px 0;background:var(--warn)}
+    .result.ok{background:var(--ok);border-left-color:#22c55e}
+    .result.warn{background:var(--warn);border-left-color:#f59e0b}
+    .result.ng{background:var(--ng);border-left-color:#ef4444}
+    .result h3{margin:0 0 6px;font-size:18px}
+    .result p{margin:6px 0;line-height:1.7}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .breadcrumb{font-size:12px;color:var(--muted);margin:6px 0 0}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    details.acd{background:var(--panel);border-radius:14px;box-shadow:0 1px 0 rgba(0,0,0,.04),0 8px 24px rgba(2,13,40,.06);padding:8px}
+    details.acd > summary{list-style:none;cursor:pointer;padding:10px 12px;border-radius:12px;display:flex;gap:10px;align-items:center}
+    details.acd > summary::marker, details.acd > summary::-webkit-details-marker {display:none}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px}
+    .table th{color:var(--muted);font-weight:600}
+    .kbd{font-family: ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f4f6;border-radius:6px;padding:2px 6px}
+    @media (max-width:640px){
+      .btn{padding:9px 12px}
+      .chip{padding:8px 10px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar container">
+      <div>
+        <div class="title">修理受付コンサルナビ（新潟エリア版）</div>
+        <div class="sub">メーカー・保証のナレッジをJSONで管理し、誰でも同じ判断を</div>
+      </div>
+      <a class="btn brand" href="https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform" target="_blank" rel="noopener">意見を送る（Googleフォーム）</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="crumb" class="breadcrumb">進行：メーカー選択</div>
+
+    <section class="card" id="panel"></section>
+
+    <details class="acd" id="history">
+      <summary>🕙 更新履歴（タップで開閉）</summary>
+      <div class="card" id="historyBody">
+        <div class="muted" style="margin-bottom:6px">※ 履歴は <span class="kbd">update_log.json</span> を読み込み表示します。</div>
+        <table class="table" id="historyTable">
+          <thead><tr><th>日付</th><th>店舗名</th><th>名前</th><th>更新内容</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <div class="controls">
+      <button class="btn" id="backBtn">← 戻る</button>
+      <button class="btn" id="homeBtn">最初から</button>
+    </div>
+  </main>
+
+  <script>
+    // --- Utility ---
+    const $ = (q, el = document) => el.querySelector(q);
+    const $$ = (q, el = document) => Array.from(el.querySelectorAll(q));
+    const panel = $("#panel");
+    const crumb = $("#crumb");
+    const backBtn = $("#backBtn");
+    const homeBtn = $("#homeBtn");
+
+    const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform";
+
+    // --- Data Loading ---
+    let DATA = null;
+    let UPDATE_LOG = null;
+
+    async function safeFetchJSON(path){
+      try{
+        const res = await fetch(path, {cache: "no-store"});
+        if(!res.ok) throw new Error(res.status + " " + res.statusText);
+        return await res.json();
+      }catch(e){
+        console.error("JSON load error:", path, e);
+        return null;
+      }
+    }
+
+    async function loadAll(){
+      DATA = await safeFetchJSON("data.json");
+      UPDATE_LOG = await safeFetchJSON("update_log.json");
+      if(!DATA){
+        renderError("設定エラー：data.json が読み込めません。<br><small class='muted'>ファイルの配置とJSON構文をご確認ください。</small>");
+        return;
+      }
+      renderHome();
+      renderHistory();
+    }
+
+    // --- Navigation State ---
+    const stack = []; // breadcrumbs
+    function pushCrumb(label){ stack.push(label); syncCrumb(); }
+    function popCrumb(){ stack.pop(); syncCrumb(); }
+    function resetCrumb(){ stack.length = 0; syncCrumb(); }
+    function syncCrumb(){
+      crumb.innerHTML = "進行： " + (stack.length ? stack.join(" > ") : "メーカー選択");
+      backBtn.disabled = stack.length === 0;
+    }
+
+    backBtn.addEventListener("click", ()=>{
+      if(stack.length === 0){ return; }
+      stack.pop();
+      // re-render based on depth
+      if(stack.length === 0) renderHome();
+      else if(stack[0] === "Apple") renderAppleStep(stack.slice(1));
+      else if(stack[0] === "Surface") renderSurface();
+      else if(stack[0] === "VAIO") renderVAIOStep(stack.slice(1));
+      else if(getAllMakers().includes(stack[0])) renderGenericMaker(stack[0], stack.slice(1));
+      else renderHome();
+    });
+    homeBtn.addEventListener("click", ()=>{ renderHome(); });
+
+    // --- Rendering helpers ---
+    function chip(label, handler){
+      const el = document.createElement("button");
+      el.className = "chip";
+      el.textContent = label;
+      el.onclick = handler;
+      return el;
+    }
+    function cardResult(kind,title,lines){
+      const el = document.createElement("div");
+      el.className = "result " + (kind||"warn");
+      el.innerHTML = `<h3>${title}</h3>${lines.map(p=>`<p>${p}</p>`).join("")}`;
+      return el;
+    }
+    function renderError(html){
+      panel.innerHTML = "";
+      panel.append(cardResult("ng","設定エラー", [html]));
+    }
+
+    // --- Home ---
+    function getAllMakers(){
+      const g = DATA?.groups || {};
+      return [...(g.domestic||[]), ...(g.overseas||[]), ...(g.surface||[]), ...(g.apple||[])];
+    }
+
+    function renderHome(){
+      resetCrumb();
+      panel.innerHTML = "";
+      const g = DATA.groups || {};
+
+      const sec = document.createElement("div");
+      // Domestic
+      if(g.domestic?.length){
+        sec.append(childTitle("国内メーカー"));
+        const row = document.createElement("div"); row.className = "row";
+        g.domestic.forEach(m=> row.append(chip(m, ()=>{ pushCrumb(m); renderGenericMaker(m, []); })));
+        sec.append(row);
+      }
+      // Overseas
+      if(g.overseas?.length){
+        sec.append(childTitle("海外メーカー"));
+        const row = document.createElement("div"); row.className = "row";
+        g.overseas.forEach(m=> row.append(chip(m, ()=>{
+          pushCrumb(m);
+          renderGenericMaker(m, [], {overseas:true});
+        })));
+        sec.append(row);
+      }
+      // Surface
+      if(g.surface?.length){
+        sec.append(childTitle("Surface"));
+        const row = document.createElement("div"); row.className = "row";
+        g.surface.forEach(m=> row.append(chip(m, ()=>{
+          pushCrumb("Surface");
+          renderSurface();
+        })));
+        sec.append(row);
+      }
+      // Apple
+      if(g.apple?.length){
+        sec.append(childTitle("Apple"));
+        const row = document.createElement("div"); row.className = "row";
+        g.apple.forEach(m=> row.append(chip(m, ()=>{
+          pushCrumb("Apple");
+          renderAppleStep([]);
+        })));
+        sec.append(row);
+      }
+
+      panel.append(sec);
+      $("#backBtn").disabled = true;
+    }
+    function childTitle(text){
+      const h = document.createElement("div");
+      h.className = "section-title";
+      h.textContent = text;
+      return h;
+    }
+
+    // --- Surface (Microsoft) ---
+    function renderSurface(){
+      panel.innerHTML = "";
+      const lines = [
+        "当店での修理受付はできません。お客様とメーカーで直接のやり取りになります。",
+        "マイクロソフトサポートセンター（Surface専用）",
+        "電話番号：0120-54-2244",
+        "受付時間：月〜金 9:00〜18:00（土日祝休み）"
+      ];
+      panel.append(cardResult("ng","店舗修理受付不可（メーカー直接）", lines));
+    }
+
+    // --- VAIO special flow ---
+    function renderVAIOStep(path){
+      panel.innerHTML = "";
+      if(path.length === 0){
+        const q = document.createElement("div");
+        q.className = "section-title";
+        q.textContent = "Sony株式会社が販売しているVAIOですか？ それとも VAIO株式会社が販売しているVAIOですか？";
+        panel.append(q);
+        panel.append(childTitle("時期目安・製造元"));
+        const row = document.createElement("div"); row.className="row";
+        row.append(chip("Sony株式会社のVAIO", ()=>{ pushCrumb("Sony製VAIO"); renderVAIOStep(["sony"]); }));
+        row.append(chip("VAIO株式会社のVAIO", ()=>{ pushCrumb("VAIO社製VAIO"); renderVAIOStep(["vaio"])}));
+        panel.append(row);
+        return;
+      }
+      if(path[0] === "sony"){
+        const lines = [
+          "Sony株式会社が販売しているVAIO製品の修理受付は終了している可能性が高いですが、下記にて問い合わせ可能です。",
+          "VAIOカスタマーリンク修理相談窓口：0120-60-5599（フリーダイヤル）",
+          "受付時間：月～金 9:00～18:00（祝日・年末年始除く）"
+        ];
+        panel.append(cardResult("ng","Sony製VAIO（旧機種）",lines));
+        return;
+      }
+      if(path[0] === "vaio"){
+        if(path.length === 1){
+          const q = document.createElement("div");
+          q.className = "section-title";
+          q.textContent = "当社（ノジマ）で購入していますか？";
+          panel.append(q);
+          const row = document.createElement("div"); row.className="row";
+          row.append(chip("はい", ()=>{ pushCrumb("当社購入：はい"); renderVAIOStep(["vaio","yes"]); }));
+          row.append(chip("いいえ", ()=>{ pushCrumb("当社購入：いいえ"); renderVAIOStep(["vaio","no"]); }));
+          return;
+        }
+        if(path[1] === "yes"){
+          const lines = [
+            "店舗で修理受付が可能です。必要書類をご案内のうえ受付してください。",
+            "修理依頼先: ノジマ修理センター（修理センター経由でVAIOへ修理依頼）",
+            "保守期間: 発売日から約5年（目安）"
+          ];
+          panel.append(cardResult("ok","店舗での修理受付：可能（当社購入）",lines));
+          return;
+        }
+        if(path[1] === "no"){
+          const lines = [
+            "店舗での修理受付は可能です。",
+            "ただし、お客様がメーカーと直接やり取りするよりも高額になる可能性が高い点をご説明のうえ、受付を行ってください。"
+          ];
+          panel.append(cardResult("warn","店舗修理受付は可能（価格にご注意）",lines));
+          return;
+        }
+      }
+    }
+
+    // --- Apple flow ---
+    function renderAppleStep(path){
+      panel.innerHTML = "";
+      if(path.length === 0){
+        panel.append(childTitle("メーカー保証の期間内ですか？"));
+        const row = document.createElement("div"); row.className="row";
+        row.append(chip("はい", ()=>{ pushCrumb("保証：はい"); renderAppleStep(["w_yes"]); }));
+        row.append(chip("いいえ", ()=>{ pushCrumb("保証：いいえ"); renderAppleStep(["w_no"]); }));
+        return;
+      }
+      // 保証内 → ノジマ保証の種類
+      if(path[0] === "w_yes"){
+        panel.append(childTitle("ノジマ保証のご加入状況を選択してください"));
+        const row = document.createElement("div"); row.className="row";
+        row.append(chip("① アルティメット保証", ()=>{ pushCrumb("アルティメット"); renderAppleStep(["ult"]); }));
+        row.append(chip("② プレミアム保証プラス", ()=>{ pushCrumb("プレミアム保証プラス"); renderAppleStep(["pp"]); }));
+        row.append(chip("③ 保証に入っていない", ()=>{ pushCrumb("未加入"); renderAppleStep(["none"]); }));
+        return;
+      }
+      if(path[0] === "ult"){
+        const lines=[
+          "店舗での商品交換またはポイントバック対応が可能です。",
+          "マニュアル（MD）を確認しながら対応をお願いします。",
+          "Appleサービス&サポートライン　0120-277-535 も併記のうえご案内可能です。"
+        ];
+        panel.append(cardResult("ok","店舗での商品交換・ポイントバック対応（アルティメット保証）",lines));
+        return;
+      }
+      if(path[0] === "pp"){
+        if(path.length === 1){
+          panel.append(childTitle("2023年6月1日以降に購入されていますか？"));
+          const row=document.createElement("div"); row.className="row";
+          row.append(chip("はい", ()=>{ pushCrumb("2023/6/1 以降"); renderAppleStep(["pp","aft"]); }));
+          row.append(chip("いいえ", ()=>{ pushCrumb("それ以前"); renderAppleStep(["pp","bef"]); }));
+          return;
+        }
+        if(path[1] === "aft"){
+          const lines=[
+            "Apple用の製品修理申込書を記載の上、修理受付を行ってください。",
+            "ポイントバックでの対応になります。",
+            "自然故障・物損の場合でフローが変わるため、詳細はMD等へ確認を行ってください。",
+            "※ Apple製品修理申込書はデスクネッツからダウンロード出来ます",
+            "Appleサービス&サポートライン　0120-277-535"
+          ];
+          panel.append(cardResult("warn","店頭受付→ポイントバック（プレミアム保証プラス / 2023-06-01以降）",lines));
+          return;
+        }
+        if(path[1] === "bef"){
+          const lines=[
+            "通常通り修理受付をしてください。",
+            "提携修理先ウチダエスコでの修理対応になります。",
+            "Apple用製品修理申込書を記載の上、修理受付を行ってください。",
+            "※ Apple製品修理申込書はデスクネッツからダウンロード出来ます",
+            "Appleサービス&サポートライン　0120-277-535"
+          ];
+          panel.append(cardResult("ok","店頭修理受付（ウチダエスコ送付 / プレミアム保証プラス）」",lines));
+          return;
+        }
+      }
+      if(path[0] === "none" || path[0] === "w_no"){
+        const lines=[
+          "ノジマ店頭での修理受付はできません。",
+          "Appleとお客様で直接の修理対応をご案内ください。",
+          "Appleサービス&サポートライン　0120-277-535"
+        ];
+        panel.append(cardResult("ng","店頭受付不可（Appleへ直接）",lines));
+        return;
+      }
+    }
+
+    // --- Generic maker flow (Domestic / Overseas) ---
+    function isOverseasMaker(name){
+      return (DATA.groups?.overseas||[]).includes(name);
+    }
+
+    function renderGenericMaker(maker, path, opts={}){
+      panel.innerHTML = "";
+      // Special-case VAIO label routes into VAIO flow
+      if(maker === "VAIO"){
+        pushCrumb("VAIO");
+        renderVAIOStep([]);
+        return;
+      }
+
+      // Q1: 保証期間内？
+      if(path.length === 0){
+        panel.append(childTitle("メーカー保証の期間内ですか？"));
+        const row = document.createElement("div"); row.className="row";
+        row.append(chip("はい", ()=>{ pushCrumb("保証：はい"); renderGenericMaker(maker, ["w_yes"], opts); }));
+        row.append(chip("いいえ", ()=>{ pushCrumb("保証：いいえ"); renderGenericMaker(maker, ["w_no"], opts); }));
+        return;
+      }
+
+      // 保証内
+      if(path[0] === "w_yes"){
+        // Domestic: そのまま注意文で受付OK
+        if(!isOverseasMaker(maker)){
+          const lines=[
+            "メーカー保証内として受付します。",
+            "ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
+            "その旨をお伝えのうえ、受付を進めてください。",
+            "メーカー保証書等を添付の上、修理受付をしてください。"
+          ];
+          panel.append(cardResult("ok","メーカー保証内の受付（注意事項あり）",lines));
+          addMakerExtraInfoIfAny(maker);
+          return;
+        }else{
+          // Overseas: まずノジマ保証の有無
+          if(path.length===1){
+            panel.append(childTitle("ノジマの保証に入っていますか？"));
+            const row=document.createElement("div"); row.className="row";
+            row.append(chip("はい", ()=>{ pushCrumb("ノジマ保証：あり"); renderGenericMaker(maker, ["w_yes","n_yes"], opts);}));
+            row.append(chip("いいえ", ()=>{ pushCrumb("ノジマ保証：なし"); renderGenericMaker(maker, ["w_yes","n_no"], opts);}));
+            return;
+          }
+          if(path[1] === "n_yes"){
+            const lines=[
+              "ノジマ保証加入のため、店舗で修理受付が可能です。",
+              "症状未再現やお客様都合の修理中止時は見積り代がかかる場合があります。"
+            ];
+            panel.append(cardResult("ok","店舗での修理受付：対応可能（ノジマ保証）",lines));
+            addMakerExtraInfoIfAny(maker);
+            return;
+          }
+          if(path[1] === "n_no"){
+            const lines=[
+              "ノジマ店頭での修理受付は可能です。",
+              "ただし、メーカーへ直接依頼するより修理金額が高額になる場合があります。",
+              "お客様にご説明のうえ、ご判断を尊重してください。"
+            ];
+            panel.append(cardResult("warn","修理受付可能（注意喚起）",lines));
+            addMakerExtraInfoIfAny(maker);
+            return;
+          }
+        }
+      }
+
+      // 保証外
+      if(path[0] === "w_no"){
+        const lines=[
+          "前受け金5,500円（現金のみ）をいただいて修理受付可能です。",
+          "修理キャンセル時、メーカー側で前受金を超える見積もり費が発生しても、仕入れ受け入れ時に金額5,500円へ修正OK。",
+          "BYOD→業務メニュー→ガイドライン【文章管理】→第07章 修理業務→「修理受付のよくある質問」→「前受金に関すること 」参照"
+        ];
+        panel.append(cardResult("warn","修理受付は可能（前受け金あり）",lines));
+        addMakerExtraInfoIfAny(maker);
+        return;
+      }
+    }
+
+    function addMakerExtraInfoIfAny(maker){
+      // Adds the supplemental information blocks for specific makers (Mouse, Dell, Dynabook, NEC, Fujitsu, Lenovo, MSI)
+      const extra = {
+        "Mouse Computer": [
+          "<strong>メーカー修理依頼フロー</strong>",
+          "回収方法を電話で確認してください。",
+          "〒344-0063 埼玉県春日部市緑町6-14-53",
+          "株式会社MCJ　埼玉サービスセンター",
+          "TEL：0570-08-8222 / FAX：048-739-1315"
+        ],
+        "Dell":[
+          "<strong>DELL 補足情報</strong>",
+          "保守期間: 生産完了から3年",
+          "修理依頼先: ダイワボウ情報システム（修理自動集荷）"
+        ],
+        "Dynabook":[
+          "<strong>ダイナブック 補足情報</strong>",
+          "dynabook 集中修理センター",
+          "無料通話番号 0120-97-1048",
+          "携帯電話からは 043-298-8780"
+        ],
+        "NEC":[
+          "<strong>NEC 補足情報</strong>",
+          "メーカー修理依頼フロー：修理引き取り要請の際に、事前の電話連絡が必要（0120-729-121）",
+          "〒373-0823 群馬県太田市西矢島町32 NEC群馬サービスセンター",
+          "TEL: 0276-38-0007 / FAX: 0276-38-0026",
+          "日曜祝日を除く月〜土：9:00〜17:30 ※地域により異なる可能性あり"
+        ],
+        "Fujitsu":[
+          "<strong>富士通 補足情報</strong>",
+          "メーカー修理依頼フロー：依頼書をFAX 024-575-5019 → 店舗にて引き取り",
+          "福島県伊達市保原町上野崎37-3 富士通 東日本テクノセンター",
+          "TEL：024-575-5012 / FAX：024-575-5019",
+          "平日 9:00〜17:00 ※地域により異なる可能性あり"
+        ],
+        "Lenovo":[
+          "<strong>レノボ 補足情報</strong>",
+          "メーカー修理依頼フロー：回収方法を電話で確認してください。",
+          "〒550-0015 大阪府大阪市西区南堀江2-10-2 日研ビル内 加賀ハイテック修理受付センター",
+          "TEL：06-6536-3911 / FAX：06-6536-3677",
+          "※地域により異なる可能性あり"
+        ],
+        "MSI":[
+          "<strong>MSI 補足情報</strong>",
+          "メーカー修理依頼フロー：回収方法を電話で確認してください。",
+          "043-211-9215（キヤノンMJ ITプロダクト修理受付センター）"
+        ]
+      };
+      const lines = extra[maker];
+      if(lines){
+        panel.append(cardResult("warn","補足情報（" + maker + "）", lines.map(x=>x)));
+      }
+    }
+
+    // --- Update history rendering ---
+    function renderHistory(){
+      const tbody = $("#historyTable tbody");
+      tbody.innerHTML = "";
+      if(!Array.isArray(UPDATE_LOG)){
+        tbody.innerHTML = `<tr><td colspan="4" class="muted">update_log.json が見つからないか、形式が不正です。</td></tr>`;
+        return;
+      }
+      UPDATE_LOG.forEach(row=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${escapeHtml(row.date||"-")}</td>
+                        <td>${escapeHtml(row.store||"-")}</td>
+                        <td>${escapeHtml(row.name||"-")}</td>
+                        <td>${escapeHtml(row.note||"-")}</td>`;
+        tbody.append(tr);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+    }
+
+    // --- Startup ---
+    loadAll();
+  </script>
+</body>
+</html>
