@@ -1,0 +1,53 @@
+{
+  "groups": {
+    "domestic": [
+      "NEC",
+      "Fujitsu",
+      "Dynabook",
+      "VAIO",
+      "Mouse Computer"
+    ],
+    "overseas": [
+      "ASUS",
+      "Dell",
+      "HP",
+      "Lenovo",
+      "MSI"
+    ],
+    "surface": [
+      "Surface"
+    ],
+    "apple": [
+      "Apple"
+    ]
+  },
+  "text": {
+    "domestic": {
+      "q_hasWarranty": "メーカー保証期間内ですか？",
+      "r_warranty_yes": "メーカー修理センターへ依頼してください。",
+      "r_warranty_no": "ノジマプレミアム保証の対象であれば、ノジマ修理センターへご依頼ください。",
+      "r_prepay_info": "修理依頼時は、保証書・レシート・本体をお持ちください。"
+    },
+    "overseas": {
+      "q_hasWarranty": "保証期間内ですか？",
+      "r_warn_international": "海外メーカー製品はノジマ店舗では修理受付できません。",
+      "r_store_ok": "国内代理店保証の場合は店舗受付可能です。"
+    },
+    "surface": {
+      "r_title": "Surface製品の修理について",
+      "r_details": "店頭での修理受付は行っておりません。Microsoft公式サポートよりお申し込みください。"
+    },
+    "apple": {
+      "q_hasWarranty": "メーカー保証範囲ですか？（AppleCare含む）",
+      "q_nojima_type": "ノジマで購入されたApple製品ですか？",
+      "q_after_date": "購入から1年以上経過していますか？",
+      "r_inWarranty": "Apple公式サポートをご案内ください。",
+      "r_outWarranty_nojima": "ノジマ店舗で修理受付可能です。",
+      "r_outWarranty_other": "購入店またはApple公式サポートをご案内ください。"
+    }
+  },
+  "makerInfo": {
+    "VAIO": "VAIO株式会社製かソニー製かで修理経路が異なります。",
+    "Apple": "Apple製品の修理はApple正規サービスプロバイダへ誘導してください。"
+  }
+}

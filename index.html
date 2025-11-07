@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>修理受付コンサルナビ（新潟エリア版）</title>
+  <style>
+    body{font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; margin:0; background:#f6f8fb;}
+    header{background:linear-gradient(90deg,#0b5bd9,#0f86ff); color:#fff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+    header h1{font-size:18px; margin:0;}
+    .cta{appearance:none; border:none; background:#1166ff; color:#fff; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer;}
+    .container{max-width:980px; margin:16px auto; padding:0 12px;}
+    .card{background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.05); padding:16px; margin-bottom:16px;}
+    .section-title{font-weight:700; margin:0 0 8px 0;}
+    .btn{display:inline-block; margin:6px 8px 6px 0; padding:10px 14px; background:#f2f6ff; border:1px solid #d9e4ff; border-radius:10px; cursor:pointer; user-select:none;}
+    .btn:active{transform:translateY(1px);}
+    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+    .muted{color:#708090; font-size:13px;}
+    .alert{padding:14px 16px; border-radius:10px;}
+    .alert-danger{background:#ffe8e8; border:1px solid #ffb8b8; color:#7a1111;}
+    .alert-success{background:#e8ffee; border:1px solid #b8ffcf; color:#0f5d2c;}
+    .alert-warn{background:#fff9e6; border:1px solid #ffe3a3; color:#7a5a00;}
+    details.accordion{background:#fff; border:1px solid #e6edf7; border-radius:12px; padding:8px 12px;}
+    summary{cursor:pointer; list-style:none;}
+    summary::-webkit-details-marker{display:none;}
+    .toolbar{display:flex; gap:8px; margin:8px 0;}
+    .crumbs{font-size:12px; color:#6b7280; margin-bottom:10px;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>修理受付コンサルナビ（新潟エリア版）</h1>
+    <a class="cta" href="https://docs.google.com/forms/d/e/1FAIpQLSc5pwJ5ahRwDdJiZNoXA0kSZ7Y9kufFVLL2kqACfH2yQFpsEA/viewform" target="_blank" rel="noopener">意見を送る（Googleフォーム）</a>
+  </header>
+
+  <div class="container">
+    <div class="row toolbar">
+      <button id="btnBackOne" class="btn">← ひとつ前へ</button>
+      <button id="btnHome" class="btn">最初から</button>
+    </div>
+
+    <div id="progress" class="container crumbs">進行：メーカー選択</div>
+
+    <div id="menuBox" class="card">
+      <!-- top menu / flows will be rendered here -->
+    </div>
+
+    <details id="updateAccordion" class="accordion card" open>
+      <summary class="row"><span>🕒 更新履歴（タップで開閉）</span></summary>
+      <div class="muted" style="margin:8px 0;">※ 履歴は <code>update_log.json</code> を読み込み表示します。</div>
+      <div style="overflow:auto;">
+        <table id="updateTable" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:6px;">日付</th>
+              <th style="text-align:left; padding:6px;">店舗名</th>
+              <th style="text-align:left; padding:6px;">名前</th>
+              <th style="text-align:left; padding:6px;">更新内容</th>
+            </tr>
+          </thead>
+          <tbody id="updateTbody">
+            <tr><td colspan="4" class="muted" style="padding:6px;">update_log.json が見つからないか、形式が不正です。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- scripts: relative paths, defer to ensure order -->
+  <script src="./core.js" defer></script>
+  <script src="./vendor_domestic.js" defer></script>
+  <script src="./vendor_overseas.js" defer></script>
+  <script src="./vendor_vaio.js" defer></script>
+  <script src="./vendor_apple.js" defer></script>
+  <script defer>
+    window.addEventListener('DOMContentLoaded', () => {
+      initApp({
+        dataUrl: './data.json?v=' + Date.now(),
+        updateLogUrl: './update_log.json?v=' + Date.now()
+      });
+    });
+  </script>
+</body>
+</html>
