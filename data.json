@@ -1,0 +1,23 @@
+{
+  "groups": {
+    "domestic": [
+      "NEC",
+      "Fujitsu",
+      "Dynabook",
+      "VAIO",
+      "Mouse Computer"
+    ],
+    "overseas": [
+      "ASUS",
+      "Dell",
+      "Lenovo",
+      "MSI"
+    ],
+    "surface": [
+      "Surface"
+    ],
+    "apple": [
+      "Apple"
+    ]
+  }
+}
